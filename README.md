@@ -72,30 +72,38 @@ ENVIRONMENT=development
 
 ### First Time Setup
 
-1. **Start the MCP server:**
+1. **Initialize the development environment:**
    ```bash
-   make run
-   # or: python server.py
+   make init
+   # This creates virtual environment and installs dependencies
    ```
 
 2. **Populate the documentation database:**
    ```bash
-   # Test with limited content first
-   python ingest_documentation.py --source python --test
+   # Test with limited content first (recommended)
+   ./run_ingestion.sh --source python --test
    
-   # Full Python documentation ingestion
-   python ingest_documentation.py --source python
+   # Full Python documentation ingestion (~468 documents)
+   ./run_ingestion.sh --source python
+   
+   # List all available sources
+   ./run_ingestion.sh --list-sources
    ```
 
-3. **Verify the setup:**
+3. **Start the MCP server:**
    ```bash
-   # Check collection statistics
-   python -c "
-   from docs_ingestion import DocumentationIngester
-   ingester = DocumentationIngester()
-   print(ingester.get_collection_stats())
-   "
+   ./run_server.sh
+   # or: make run
    ```
+
+### Easy Scripts
+
+For convenience, use the provided scripts:
+
+- `./run_ingestion.sh` - Handles environment and runs documentation ingestion
+- `./run_server.sh` - Handles environment and runs MCP server  
+- `make init` - One-time setup of development environment
+- `make all-checks` - Run quality checks before commits
 
 ### Running the Server
 
