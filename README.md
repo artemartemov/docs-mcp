@@ -35,39 +35,67 @@ A secure, production-ready Model Context Protocol (MCP) server providing intelli
 
 ### Prerequisites
 - Python 3.9+
-- Access to ResaleAnalyzer's Chroma database
-- OpenAI API key (for embeddings)
+- Internet connection for documentation ingestion
+- OpenAI API key (optional, for advanced embeddings)
 
 ### Installation
 
 ```bash
 # Clone the repository
-git clone <your-private-repo-url>
+git clone <repository-url>
 cd docs-mcp
 
-# Create virtual environment
+# Initialize development environment (recommended)
+make init
+
+# Or manual setup:
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
-
-# Install dependencies
 pip install -r requirements.txt
-
-# Copy and configure environment
-cp .env.example .env
-# Edit .env with your configuration
 ```
 
 ### Configuration
 
-Create a `.env` file with your settings:
+The server works with minimal configuration. For advanced features:
 
 ```bash
-CHROMA_DATA_DIR=/path/to/resale-analyzer/.chroma_data
-OPENAI_API_KEY=sk-your-openai-key
+# Copy example environment file
+cp .env.example .env
+
+# Edit .env with your settings (optional)
+CHROMA_DATA_DIR=./chroma_data
+OPENAI_API_KEY=sk-your-openai-key  # Optional for advanced embeddings
 MCP_SERVER_HOST=127.0.0.1
 MCP_SERVER_PORT=8000
 ENVIRONMENT=development
 ```
+
+### First Time Setup
+
+1. **Start the MCP server:**
+   ```bash
+   make run
+   # or: python server.py
+   ```
+
+2. **Populate the documentation database:**
+   ```bash
+   # Test with limited content first
+   python ingest_documentation.py --source python --test
+   
+   # Full Python documentation ingestion
+   python ingest_documentation.py --source python
+   ```
+
+3. **Verify the setup:**
+   ```bash
+   # Check collection statistics
+   python -c "
+   from docs_ingestion import DocumentationIngester
+   ingester = DocumentationIngester()
+   print(ingester.get_collection_stats())
+   "
+   ```
 
 ### Running the Server
 
@@ -82,16 +110,18 @@ uvicorn server:mcp --host 127.0.0.1 --port 8000
 ## MCP Tools Available
 
 ### Search Tools
-- `search_fastapi_docs(query, category, limit)` - Search FastAPI documentation
-- `search_python_docs(query, category, limit)` - Search Python best practices  
+- `search_python_docs(query, category, limit)` - Search Python official documentation with intelligent prioritization
+- `search_fastapi_docs(query, category, limit)` - Search FastAPI documentation  
 - `search_swift_ios_docs(query, category, limit)` - Search Swift iOS patterns
 
-### Information Tools
-- `get_security_guidelines()` - Get project security guidelines
-- `get_collection_stats()` - View documentation database statistics
+### Documentation Management
+- `ingest_documentation_source(source, test_mode)` - Populate database from documentation sources
+- `list_documentation_sources()` - List all available documentation sources
+- `add_project_documentation(content, framework, category, source)` - Add custom documentation
 
-### Management Tools
-- `add_project_documentation(content, framework, category, source)` - Add new documentation
+### Information Tools
+- `get_security_guidelines()` - Get comprehensive security guidelines
+- `get_collection_stats()` - View detailed database statistics
 
 ## Integration with Claude Code
 
@@ -100,15 +130,90 @@ Add to your `.mcp.json`:
 ```json
 {
   "mcpServers": {
-    "resale_docs": {
+    "documentation_server": {
       "command": "python",
-      "args": ["/Users/yourname/dev/docs-mcp/server.py"],
+      "args": ["/path/to/docs-mcp/server.py"],
       "env": {
-        "PYTHONPATH": "/Users/yourname/dev/docs-mcp"
+        "PYTHONPATH": "/path/to/docs-mcp"
       }
     }
   }
 }
+```
+
+## Documentation Ingestion
+
+### Available Sources
+
+Currently supported documentation sources:
+
+- **Python**: Official Python 3 documentation using Sphinx inventory API
+- **FastAPI**: (Coming soon) - FastAPI official documentation  
+- **Swift iOS**: (Coming soon) - Apple's Swift and iOS documentation
+
+### Adding New Documentation Sources
+
+The framework is designed for easy extension:
+
+```bash
+# List available sources
+python ingest_documentation.py --list-sources
+
+# Ingest specific source
+python ingest_documentation.py --source python
+
+# Test mode for safe development
+python ingest_documentation.py --source python --test
+
+# Ingest all available sources
+python ingest_documentation.py --source all
+```
+
+### Creating Custom Adapters
+
+To add support for new documentation sources, create an adapter in `docs_ingestion/adapters/`:
+
+```python
+from docs_ingestion.base import BaseDocumentationSource, DocumentContent, DocumentMetadata
+
+class MyFrameworkSource(BaseDocumentationSource):
+    def get_framework_name(self) -> str:
+        return "myframework"
+    
+    async def discover_content(self) -> List[str]:
+        # Implement content discovery logic
+        pass
+    
+    async def extract_content(self, identifier: str) -> Optional[DocumentContent]:
+        # Implement content extraction logic
+        pass
+```
+
+## Usage Examples
+
+### Basic Search
+
+```python
+# Through MCP tools (recommended)
+search_python_docs("asyncio patterns", "async", 5)
+search_fastapi_docs("dependency injection", "patterns", 3)
+
+# Direct database access
+from docs_ingestion import DocumentationIngester
+ingester = DocumentationIngester()
+stats = ingester.get_collection_stats()
+```
+
+### Adding Custom Documentation
+
+```python
+add_project_documentation(
+    content="Custom documentation content...",
+    framework="python",
+    category="custom_patterns",
+    source="Internal Team Knowledge",
+    doc_type="best_practice"
+)
 ```
 
 ## Security Features
