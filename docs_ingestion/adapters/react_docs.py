@@ -85,7 +85,7 @@ class ReactDocsSource(BaseDocumentationSource):
     async def discover_content(self) -> List[str]:
         """
         Discover React documentation URLs.
-        Since React doesn't use Sphinx, we use multiple discovery methods.
+        Since React doesn't use Sphinx and has SPA navigation, we use comprehensive discovery.
         """
         logger.info(f"🔍 Discovering React documentation from {self.base_url}")
         
@@ -96,13 +96,17 @@ class ReactDocsSource(BaseDocumentationSource):
             full_url = urljoin(self.base_url, path)
             discovered_urls.add(full_url)
         
-        # Method 2: Try to find sitemap.xml
+        # Method 2: Try to find sitemap.xml (likely won't work but worth trying)
         sitemap_urls = await self._discover_from_sitemap()
         discovered_urls.update(sitemap_urls)
         
-        # Method 3: Crawl main sections
+        # Method 3: Crawl main sections first
         section_urls = await self._discover_from_navigation()
         discovered_urls.update(section_urls)
+        
+        # Method 4: Recursive section discovery - crawl each main section
+        recursive_urls = await self._discover_from_sections()
+        discovered_urls.update(recursive_urls)
         
         # Filter and clean URLs
         filtered_urls = []
@@ -186,6 +190,63 @@ class ReactDocsSource(BaseDocumentationSource):
         
         return nav_urls
     
+    async def _discover_from_sections(self) -> Set[str]:
+        """Recursively discover URLs from main sections (learn, reference, etc.)"""
+        section_urls = set()
+        
+        # Main sections to crawl comprehensively
+        main_sections = [
+            'learn',
+            'reference/react',
+            'reference/react-dom', 
+            'blog',
+            'community'
+        ]
+        
+        for section in main_sections:
+            try:
+                section_url = urljoin(self.base_url, section)
+                logger.info(f"🔄 Crawling section: {section}")
+                await asyncio.sleep(self.rate_limit_delay)
+                
+                async with self.session.get(section_url) as response:
+                    if response.status == 200:
+                        html_content = await response.text()
+                        soup = BeautifulSoup(html_content, 'html.parser')
+                        
+                        # Find all links on this section page
+                        all_links = soup.find_all('a', href=True)
+                        section_found = 0
+                        
+                        for link in all_links:
+                            href = link['href']
+                            
+                            # Handle relative links
+                            if href.startswith('/'):
+                                full_url = urljoin(self.base_url, href)
+                            elif href.startswith(self.base_url):
+                                full_url = href
+                            else:
+                                continue
+                                
+                            # Only add URLs that belong to our target sections
+                            if (full_url.startswith(self.base_url) and 
+                                any(f'/{sec}/' in full_url or full_url.endswith(f'/{sec}') 
+                                    for sec in ['learn', 'reference', 'blog', 'community'])):
+                                section_urls.add(full_url)
+                                section_found += 1
+                        
+                        logger.info(f"   Found {section_found} URLs in {section}")
+                        
+                    else:
+                        logger.warning(f"HTTP {response.status} for section {section}")
+                        
+            except Exception as e:
+                logger.warning(f"Could not crawl section {section}: {e}")
+        
+        logger.info(f"📂 Found {len(section_urls)} URLs from recursive section discovery")
+        return section_urls
+    
     def _should_include_url(self, url: str) -> bool:
         """Filter URLs based on relevance and quality"""
         # Skip unwanted patterns
@@ -201,17 +262,20 @@ class ReactDocsSource(BaseDocumentationSource):
         if '#' in url or '?' in url:
             return False
         
-        # Prefer priority sections
         parsed_url = urlparse(url)
         path = parsed_url.path.strip('/')
         
         if not path:  # Homepage
             return True
             
-        # Check if it's in a priority section
+        # Include all URLs from priority sections (more permissive now)
         for section in self.priority_sections:
             if path.startswith(section):
                 return True
+        
+        # Also include any other React documentation URLs we might have missed
+        if any(section in path for section in ['learn', 'reference', 'blog', 'community']):
+            return True
         
         return False
     

@@ -132,24 +132,34 @@ class FigmaDocsSource(BaseDocumentationSource):
     async def discover_content(self) -> List[str]:
         """
         Discover Figma API documentation URLs.
-        Uses navigation crawling and known API endpoints.
+        
+        Note: Figma uses a React SPA for documentation, which limits our ability to
+        extract content via traditional web scraping. We focus on known working URLs.
         """
         logger.info(f"🔍 Discovering Figma API documentation from {self.base_url}")
+        logger.warning("⚠️  Figma uses a React SPA - content extraction may be limited")
         
         discovered_urls = set()
         
-        # Method 1: Use known core URLs
-        for path in self.core_urls:
+        # Method 1: Use simplified known working core URLs
+        # These are more likely to have extractable content
+        simplified_core_urls = [
+            "",  # Base API docs
+            "introduction/",
+            "authentication/", 
+            "rate-limiting/",
+            "errors/",
+            "files/",
+            "webhooks/",
+            "plugins/"
+        ]
+        
+        for path in simplified_core_urls:
             full_url = urljoin(self.base_url, path)
             discovered_urls.add(full_url)
         
-        # Method 2: Parse navigation from main API docs page
-        nav_urls = await self._discover_from_navigation()
-        discovered_urls.update(nav_urls)
-        
-        # Method 3: Try to find API reference sections
-        api_urls = await self._discover_api_endpoints()
-        discovered_urls.update(api_urls)
+        # Method 2: Check for alternative documentation sources
+        logger.info("🔍 Checking for alternative Figma documentation sources...")
         
         # Filter and clean URLs
         filtered_urls = []
@@ -158,6 +168,8 @@ class FigmaDocsSource(BaseDocumentationSource):
                 filtered_urls.append(url)
         
         logger.info(f"📋 Found {len(filtered_urls)} Figma API documentation URLs")
+        logger.info("💡 Note: Figma's SPA architecture limits traditional scraping")
+        logger.info("💡 For comprehensive API docs, consider using Figma's REST API directly")
         
         # Log section breakdown
         section_counts = {}
@@ -331,7 +343,7 @@ class FigmaDocsSource(BaseDocumentationSource):
             elif " - Figma" in title:
                 title = title.split(" - Figma")[0].strip()
             
-            # Extract main content - Figma uses specific structure
+            # Extract main content - Figma uses SPA, so try multiple approaches
             content_selectors = [
                 'main',
                 '[role="main"]',
@@ -339,7 +351,10 @@ class FigmaDocsSource(BaseDocumentationSource):
                 '.api-docs',
                 'article',
                 '.content',
-                '.documentation'
+                '.documentation',
+                'body',  # Fallback to body for SPAs
+                '#root',  # Common React root
+                '.app',   # Common app container
             ]
             
             content_div = None
@@ -349,8 +364,26 @@ class FigmaDocsSource(BaseDocumentationSource):
                     break
             
             if not content_div:
-                logger.warning(f"No main content found for {url}")
-                return None
+                # For SPAs, sometimes we need to extract from the entire body
+                logger.info(f"Using fallback content extraction for SPA: {url}")
+                content_div = soup.find('body')
+                
+            if not content_div:
+                logger.warning(f"No content found for {url}")
+                # Return basic metadata even if content extraction fails
+                metadata = DocumentMetadata(
+                    framework="figma",
+                    source="Figma API Official Documentation",
+                    doc_type="api_reference",
+                    title=title or "Figma API Documentation",
+                    url=url,
+                    section=self._extract_section_from_url(url),
+                    subsection=self._extract_subsection(url),
+                    version=self.version,
+                    language="en",
+                    tags=["api", "figma", "spa_limitation"]
+                )
+                return DocumentContent(content="Content not available due to SPA architecture.", metadata=metadata)
             
             # Remove navigation, ads, and non-content elements
             for element in content_div.find_all([

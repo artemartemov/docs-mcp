@@ -99,24 +99,31 @@ class SwiftUIDocsSource(BaseDocumentationSource):
     async def discover_content(self) -> List[str]:
         """
         Discover SwiftUI documentation URLs.
-        Apple doesn't provide easy programmatic access, so we use multiple methods.
+        
+        Note: Apple's developer documentation requires JavaScript rendering,
+        which limits content extraction via traditional web scraping.
         """
         logger.info(f"🔍 Discovering SwiftUI documentation from {self.base_url}")
+        logger.warning("⚠️  Apple Developer docs require JavaScript - content extraction may be limited")
         
         discovered_urls = set()
         
-        # Method 1: Use known core URLs
-        for path in self.core_urls:
+        # Use a simplified approach with known working patterns
+        simplified_core_urls = [
+            "",  # Base SwiftUI docs
+            "text",
+            "button", 
+            "image",
+            "vstack",
+            "hstack",
+            "list",
+            "view",
+            "app"
+        ]
+        
+        for path in simplified_core_urls:
             full_url = urljoin(self.base_url, path)
             discovered_urls.add(full_url)
-        
-        # Method 2: Try to parse the main SwiftUI page structure
-        main_page_urls = await self._discover_from_main_page()
-        discovered_urls.update(main_page_urls)
-        
-        # Method 3: Try common SwiftUI patterns
-        pattern_urls = await self._discover_from_patterns()
-        discovered_urls.update(pattern_urls)
         
         # Filter and clean URLs
         filtered_urls = []
@@ -125,6 +132,8 @@ class SwiftUIDocsSource(BaseDocumentationSource):
                 filtered_urls.append(url)
         
         logger.info(f"📋 Found {len(filtered_urls)} SwiftUI documentation URLs")
+        logger.info("💡 Note: Apple's JavaScript-dependent architecture limits traditional scraping")
+        logger.info("💡 For comprehensive SwiftUI docs, consider using Xcode's built-in documentation")
         
         # Log section breakdown
         section_counts = {}
@@ -277,8 +286,21 @@ class SwiftUIDocsSource(BaseDocumentationSource):
                     break
             
             if not content_div:
-                logger.warning(f"No main content found for {url}")
-                return None
+                logger.info(f"No main content found for JavaScript-dependent page: {url}")
+                # Return basic metadata even if content extraction fails
+                metadata = DocumentMetadata(
+                    framework="swiftui",
+                    source="Apple Developer Documentation",
+                    doc_type="api_reference",
+                    title=title or "SwiftUI Documentation",
+                    url=url,
+                    section=self._extract_section_from_url(url),
+                    subsection=self._extract_subsection(url),
+                    version=self.version,
+                    language="en",
+                    tags=["ios", "macos", "apple", "javascript_limitation"]
+                )
+                return DocumentContent(content="Content not available due to JavaScript dependency. Please use Xcode documentation viewer for complete SwiftUI reference.", metadata=metadata)
             
             # Remove navigation, ads, and non-content elements
             for element in content_div.find_all([

@@ -68,16 +68,19 @@ class FastAPIDocsSource(BaseDocumentationSource):
         return "fastapi"
     
     async def discover_content(self) -> List[str]:
-        """Discover content using Sphinx inventory file"""
-        logger.info(f"🔍 Loading FastAPI Sphinx inventory from {self.inventory_url}")
+        """
+        Discover FastAPI content using both Sphinx inventory and sitemap.
+        FastAPI's inventory only covers API reference, but sitemap has tutorial/advanced guides.
+        """
+        logger.info(f"🔍 Discovering FastAPI documentation using multiple methods")
         
+        discovered_urls = set()
+        
+        # Method 1: Load Sphinx inventory for API reference
         try:
-            # Load inventory using sphobjinv
+            logger.info(f"📚 Loading Sphinx inventory from {self.inventory_url}")
             self.inventory = soi.Inventory(url=self.inventory_url)
-            logger.info(f"📚 Loaded inventory with {len(self.inventory.objects)} objects")
-            
-            # Extract unique URLs from inventory
-            unique_urls = set()
+            logger.info(f"   Found {len(self.inventory.objects)} inventory objects")
             
             for obj in self.inventory.objects:
                 # Skip certain object types that don't provide good content
@@ -92,14 +95,43 @@ class FastAPIDocsSource(BaseDocumentationSource):
                     
                     # Apply filtering
                     if self._should_include_url(full_url):
-                        unique_urls.add(full_url)
+                        discovered_urls.add(full_url)
             
-            return sorted(list(unique_urls))
+            logger.info(f"   Added {len([u for u in discovered_urls if '/reference/' in u])} reference URLs from inventory")
             
         except Exception as e:
-            logger.error(f"❌ Failed to load FastAPI inventory: {e}")
-            # Fallback to manual URL discovery if inventory fails
-            return await self._fallback_discovery()
+            logger.warning(f"⚠️  Failed to load Sphinx inventory: {e}")
+        
+        # Method 2: Load sitemap.xml for comprehensive coverage
+        try:
+            logger.info(f"🗺️  Loading sitemap from {self.base_url}sitemap.xml")
+            sitemap_urls = await self._discover_from_sitemap()
+            initial_count = len(discovered_urls)
+            discovered_urls.update(sitemap_urls)
+            logger.info(f"   Added {len(discovered_urls) - initial_count} URLs from sitemap")
+            
+        except Exception as e:
+            logger.warning(f"⚠️  Failed to load sitemap: {e}")
+        
+        # Filter and clean URLs
+        filtered_urls = []
+        for url in discovered_urls:
+            if self._should_include_url(url):
+                filtered_urls.append(url)
+        
+        logger.info(f"📋 Found {len(filtered_urls)} FastAPI documentation URLs")
+        
+        # Log section breakdown
+        section_counts = {}
+        for url in filtered_urls:
+            section = self._extract_section_from_url(url)
+            section_counts[section] = section_counts.get(section, 0) + 1
+        
+        logger.info("📊 Section breakdown:")
+        for section, count in sorted(section_counts.items()):
+            logger.info(f"   {section}: {count} pages")
+        
+        return sorted(filtered_urls)
     
     def _should_include_url(self, url: str) -> bool:
         """Filter URLs based on relevance and quality"""
@@ -131,6 +163,49 @@ class FastAPIDocsSource(BaseDocumentationSource):
         ]
         
         return fallback_urls
+    
+    async def _discover_from_sitemap(self) -> set:
+        """Discover URLs from FastAPI sitemap.xml"""
+        sitemap_urls = set()
+        
+        try:
+            sitemap_url = urljoin(self.base_url, "sitemap.xml")
+            await asyncio.sleep(self.rate_limit_delay)
+            
+            async with self.session.get(sitemap_url) as response:
+                if response.status == 200:
+                    sitemap_content = await response.text()
+                    # Parse sitemap XML
+                    from xml.etree import ElementTree as ET
+                    root = ET.fromstring(sitemap_content)
+                    
+                    for url_elem in root.findall('.//{http://www.sitemaps.org/schemas/sitemap/0.9}url'):
+                        loc_elem = url_elem.find('{http://www.sitemaps.org/schemas/sitemap/0.9}loc')
+                        if loc_elem is not None and loc_elem.text:
+                            if loc_elem.text.startswith(self.base_url):
+                                sitemap_urls.add(loc_elem.text)
+                    
+                    logger.info(f"📄 Found {len(sitemap_urls)} URLs from sitemap")
+                    
+        except Exception as e:
+            logger.warning(f"Could not load sitemap: {e}")
+        
+        return sitemap_urls
+    
+    def _extract_section_from_url(self, url: str) -> str:
+        """Extract main section from URL for organization"""
+        from urllib.parse import urlparse
+        parsed = urlparse(url)
+        path_parts = [p for p in parsed.path.split('/') if p]
+        
+        if not path_parts:
+            return "home"
+        
+        section = path_parts[0]
+        if section in self.priority_sections:
+            return section
+        else:
+            return "other"
     
     async def extract_content(self, url: str) -> Optional[DocumentContent]:
         """Extract content from a single FastAPI documentation page"""
