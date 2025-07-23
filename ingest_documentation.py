@@ -15,7 +15,10 @@ from typing import List, Dict, Any
 import json
 
 from docs_ingestion import DocumentationIngester
-from docs_ingestion.adapters import PythonDocsSource, FastAPIDocsSource, ReactDocsSource
+from docs_ingestion.adapters import (
+    PythonDocsSource, FastAPIDocsSource, ReactDocsSource,
+    SwiftUIDocsSource, TailwindDocsSource, FigmaDocsSource
+)
 from config import get_settings, create_log_directory
 
 # Configure logging
@@ -56,13 +59,33 @@ class IngestionConfig:
             "class": ReactDocsSource,
             "versions": ["latest"],
             "default_version": "latest"
+        },
+        "swiftui": {
+            "name": "SwiftUI Official Documentation",
+            "description": "SwiftUI documentation from Apple Developer",
+            "class": SwiftUIDocsSource,
+            "versions": ["latest"],
+            "default_version": "latest"
+        },
+        "tailwind": {
+            "name": "Tailwind CSS Official Documentation", 
+            "description": "Tailwind CSS utility-first framework documentation",
+            "class": TailwindDocsSource,
+            "versions": ["latest"],
+            "default_version": "latest"
+        },
+        "figma": {
+            "name": "Figma API Official Documentation",
+            "description": "Figma API documentation for developers",
+            "class": FigmaDocsSource,
+            "versions": ["latest"],
+            "default_version": "latest"
         }
         # Future sources to add:
         # "django": {...},
         # "flask": {...},
         # "vue": {...},
-        # "typescript": {...},
-        # "swift": {...}
+        # "typescript": {...}
     }
     
     @classmethod
@@ -179,6 +202,21 @@ async def ingest_multiple_sources(sources: List[str], test_mode: bool = False) -
                 config = IngestionConfig.get_source_info("react")
                 version = config.get("default_version", "latest")
                 result = await ingest_generic_docs(ReactDocsSource, source_name, version, test_mode)
+                results[source_name] = result
+            elif source_name == "swiftui":
+                config = IngestionConfig.get_source_info("swiftui")
+                version = config.get("default_version", "latest")
+                result = await ingest_generic_docs(SwiftUIDocsSource, source_name, version, test_mode)
+                results[source_name] = result
+            elif source_name == "tailwind":
+                config = IngestionConfig.get_source_info("tailwind")
+                version = config.get("default_version", "latest")
+                result = await ingest_generic_docs(TailwindDocsSource, source_name, version, test_mode)
+                results[source_name] = result
+            elif source_name == "figma":
+                config = IngestionConfig.get_source_info("figma")
+                version = config.get("default_version", "latest")
+                result = await ingest_generic_docs(FigmaDocsSource, source_name, version, test_mode)
                 results[source_name] = result
             else:
                 logger.warning(f"⚠️  Source '{source_name}' not yet implemented")
