@@ -56,7 +56,7 @@ class DocumentMetadata:
             "language": self.language,
             "ingested_at": datetime.utcnow().isoformat(),
             "last_modified": self.last_modified or "unknown",
-            "project": "resale_analyzer"
+            "project": "documentation_server"
         }
         
         # Add optional fields if present
@@ -173,7 +173,7 @@ class BaseDocumentationSource(ABC):
 class DocumentationIngester:
     """Main orchestrator for documentation ingestion"""
     
-    def __init__(self, collection_name: str = "resale_analyzer_docs"):
+    def __init__(self, collection_name: str = "documentation_collection"):
         self.collection_name = collection_name
         self.chroma_client: Optional[chromadb.PersistentClient] = None
         self.collection = None
@@ -198,7 +198,7 @@ class DocumentationIngester:
                 self.collection = self.chroma_client.create_collection(
                     name=self.collection_name,
                     metadata={
-                        "description": "ResaleAnalyzer comprehensive documentation collection",
+                        "description": "Multi-framework comprehensive documentation collection",
                         "created_at": datetime.utcnow().isoformat(),
                         "version": "2.0",
                         "ingestion_framework": "docs_ingestion"

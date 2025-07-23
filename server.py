@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-ResaleAnalyzer Documentation MCP Server
-Secure MCP server for FastAPI, Python, and Swift iOS documentation.
+Documentation MCP Server
+Secure MCP server for multi-framework documentation search and retrieval.
 
 Security features:
 - Input validation and sanitization
@@ -36,7 +36,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Initialize MCP server
-mcp = FastMCP("ResaleAnalyzerDocs")
+mcp = FastMCP("DocumentationServer")
 
 # Global Chroma client
 chroma_client = None
@@ -102,26 +102,26 @@ def initialize_chroma():
             ),
         )
 
-        # Get or create project-specific documentation collection
+        # Get or create comprehensive documentation collection
         try:
-            collection = chroma_client.get_collection("resale_analyzer_docs")
+            collection = chroma_client.get_collection("documentation_collection")
             logger.info("Connected to existing documentation collection")
         except Exception:
             collection = chroma_client.create_collection(
-                name="resale_analyzer_docs",
+                name="documentation_collection",
                 metadata={
                     "description": (
-                        "ResaleAnalyzer project documentation: "
-                        "FastAPI + Python + Swift iOS"
+                        "Multi-framework documentation collection: "
+                        "Python + FastAPI + Swift iOS + more"
                     ),
                     "created_at": datetime.utcnow().isoformat(),
-                    "version": "1.0",
+                    "version": "2.0",
                 },
             )
             logger.info("Created new documentation collection")
 
         logger.info(
-            f"✅ Connected to ResaleAnalyzer Chroma database at "
+            f"✅ Connected to Documentation Chroma database at "
             f"{settings.chroma_data_dir}"
         )
         return True
@@ -136,7 +136,7 @@ def generate_doc_id(content: str, framework: str) -> str:
     # Create hash of content for uniqueness
     content_hash = hashlib.sha256(content.encode()).hexdigest()[:8]
     timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
-    return f"resale_{framework}_{timestamp}_{content_hash}"
+    return f"docs_{framework}_{timestamp}_{content_hash}"
 
 
 def format_results(results, framework_name: str) -> str:
@@ -567,7 +567,7 @@ def add_project_documentation(
             "category": request.category,
             "source": request.source,
             "type": request.doc_type,
-            "project": "resale_analyzer",
+            "project": "documentation_server",
             "added_at": datetime.utcnow().isoformat(),
             "content_hash": hashlib.sha256(request.content.encode()).hexdigest()[:16],
         }

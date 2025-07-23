@@ -58,7 +58,8 @@ site/
 *.db
 *.sqlite3
 
-# Chroma data (if storing locally)
+# Chroma data (local storage)
+chroma_data/
 .chroma_data/
 
 # Temporary files
