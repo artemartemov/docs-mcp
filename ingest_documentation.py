@@ -15,7 +15,7 @@ from typing import List, Dict, Any
 import json
 
 from docs_ingestion import DocumentationIngester
-from docs_ingestion.adapters import PythonDocsSource
+from docs_ingestion.adapters import PythonDocsSource, FastAPIDocsSource, ReactDocsSource
 from config import get_settings, create_log_directory
 
 # Configure logging
@@ -42,11 +42,27 @@ class IngestionConfig:
             "class": PythonDocsSource,
             "versions": ["3", "3.12", "3.11"],
             "default_version": "3"
+        },
+        "fastapi": {
+            "name": "FastAPI Official Documentation",
+            "description": "FastAPI official documentation with tutorials and advanced guides",
+            "class": FastAPIDocsSource,
+            "versions": ["latest"],
+            "default_version": "latest"
+        },
+        "react": {
+            "name": "React.js Official Documentation",
+            "description": "React.js official documentation from react.dev",
+            "class": ReactDocsSource,
+            "versions": ["latest"],
+            "default_version": "latest"
         }
-        # Future sources will be added here:
-        # "fastapi": {...},
-        # "swift": {...},
-        # "django": {...}
+        # Future sources to add:
+        # "django": {...},
+        # "flask": {...},
+        # "vue": {...},
+        # "typescript": {...},
+        # "swift": {...}
     }
     
     @classmethod
@@ -100,6 +116,47 @@ async def ingest_python_docs(version: str = "3", test_mode: bool = False) -> Dic
     logger.info(f"✅ Python {version} ingestion completed!")
     return result
 
+async def ingest_generic_docs(source_class, source_name: str, version: str = "latest", test_mode: bool = False) -> Dict[str, Any]:
+    """Generic ingestion function for any documentation source"""
+    logger.info(f"📚 Starting {source_name} {version} documentation ingestion...")
+    
+    ingester = DocumentationIngester()
+    
+    async with source_class(version=version) as source:
+        # Test mode: limit to small subset
+        if test_mode:
+            logger.warning("🧪 Running in TEST MODE - limited content")
+            source.batch_size = 5
+            # Override discover_content to return only a few URLs for testing
+            original_discover = source.discover_content
+            async def test_discover():
+                all_urls = await original_discover()
+                return all_urls[:10]  # Only first 10 URLs
+            source.discover_content = test_discover
+        
+        stats = await ingester.ingest_from_source(source)
+    
+    # Get final collection statistics
+    collection_stats = ingester.get_collection_stats()
+    
+    result = {
+        "source": f"{source_name}_{version}",
+        "ingestion_stats": {
+            "total_discovered": stats.total_discovered,
+            "total_processed": stats.total_processed,
+            "successful_ingestions": stats.successful_ingestions,
+            "failed_ingestions": stats.failed_ingestions,
+            "skipped_existing": stats.skipped_existing,
+            "success_rate": stats.success_rate,
+            "elapsed_time": stats.elapsed_time,
+            "errors_count": len(stats.errors)
+        },
+        "collection_stats": collection_stats
+    }
+    
+    logger.info(f"✅ {source_name} {version} ingestion completed!")
+    return result
+
 async def ingest_multiple_sources(sources: List[str], test_mode: bool = False) -> Dict[str, Any]:
     """Ingest documentation from multiple sources"""
     logger.info(f"🚀 Starting multi-source ingestion: {', '.join(sources)}")
@@ -112,6 +169,16 @@ async def ingest_multiple_sources(sources: List[str], test_mode: bool = False) -
                 config = IngestionConfig.get_source_info("python")
                 version = config.get("default_version", "3")
                 result = await ingest_python_docs(version=version, test_mode=test_mode)
+                results[source_name] = result
+            elif source_name == "fastapi":
+                config = IngestionConfig.get_source_info("fastapi")
+                version = config.get("default_version", "latest")
+                result = await ingest_generic_docs(FastAPIDocsSource, source_name, version, test_mode)
+                results[source_name] = result
+            elif source_name == "react":
+                config = IngestionConfig.get_source_info("react")
+                version = config.get("default_version", "latest")
+                result = await ingest_generic_docs(ReactDocsSource, source_name, version, test_mode)
                 results[source_name] = result
             else:
                 logger.warning(f"⚠️  Source '{source_name}' not yet implemented")
