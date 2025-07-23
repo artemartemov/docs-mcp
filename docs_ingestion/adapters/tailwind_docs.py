@@ -495,21 +495,23 @@ class TailwindDocsSource(BaseDocumentationSource):
     
     async def postprocess_metadata(self, metadata: DocumentMetadata) -> DocumentMetadata:
         """Enhance Tailwind metadata"""
-        # Add version-specific tags if mentioned
-        content_lower = metadata.content.lower()[:800]
-        if "tailwind css v3" in content_lower or "version 3" in content_lower:
+        # Add version-specific tags based on URL patterns
+        url_lower = metadata.url.lower()
+        title_lower = metadata.title.lower()
+        
+        if "v3" in url_lower or "version 3" in title_lower:
             metadata.tags.append("v3")
-        elif "tailwind css v2" in content_lower or "version 2" in content_lower:
+        elif "v2" in url_lower or "version 2" in title_lower:
             metadata.tags.append("v2")
         
-        # Add framework integration tags
-        if "react" in content_lower:
+        # Add framework integration tags based on URL and title patterns
+        if "react" in url_lower or "react" in title_lower:
             metadata.tags.append("react_integration")
-        if "vue" in content_lower:
+        if "vue" in url_lower or "vue" in title_lower:
             metadata.tags.append("vue_integration")
-        if "angular" in content_lower:
+        if "angular" in url_lower or "angular" in title_lower:
             metadata.tags.append("angular_integration")
-        if "next.js" in content_lower or "nextjs" in content_lower:
+        if "next" in url_lower or "nextjs" in title_lower:
             metadata.tags.append("nextjs_integration")
         
         return metadata

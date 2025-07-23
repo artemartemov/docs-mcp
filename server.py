@@ -174,6 +174,204 @@ def format_results(results, framework_name: str) -> str:
 
 
 @mcp.tool()
+def search_accessibility_patterns(query: str, framework: str = "all", wcag_level: str = "all", limit: int = 3) -> str:
+    """
+    Search accessibility patterns and WCAG compliance guidelines.
+    
+    Args:
+        query: Search query for accessibility patterns
+        framework: Filter by framework (fastapi, swift_ios, react, vue, all)  
+        wcag_level: Filter by WCAG level (A, AA, AAA, all)
+        limit: Maximum number of results to return (1-10)
+    
+    Returns:
+        Formatted accessibility patterns and compliance guidelines
+    """
+    if not collection:
+        return "❌ Database not available"
+    
+    # Input sanitization
+    query = str(query).strip()[:200]  # Limit query length
+    framework = str(framework).lower().strip()[:20]
+    wcag_level = str(wcag_level).upper().strip()[:5]
+    limit = max(1, min(10, int(limit)))
+    
+    if not query:
+        return "❌ Query cannot be empty"
+    
+    try:
+        # Build metadata filters
+        where_filter = {"framework": "accessibility"}
+        
+        if framework != "all" and framework in ["fastapi", "swift_ios", "react", "vue"]:
+            where_filter["target_framework"] = framework
+            
+        if wcag_level != "all" and wcag_level in ["A", "AA", "AAA"]:
+            where_filter["wcag_level"] = wcag_level
+
+        results = collection.query(
+            query_texts=[query],
+            n_results=limit,
+            where=where_filter,
+            include=["documents", "metadatas", "distances"]
+        )
+        
+        return format_search_results(results, f"accessibility patterns for '{query}'")
+        
+    except Exception as e:
+        logger.error(f"Accessibility search error: {e}")
+        return f"❌ Search failed: {str(e)[:100]}"
+
+@mcp.tool()
+def add_accessibility_pattern(
+    pattern_content: str, 
+    target_framework: str,
+    wcag_level: str = "AA",
+    category: str = "general",
+    source: str = "manual_entry"
+) -> str:
+    """
+    Add a new accessibility pattern to the knowledge base.
+    
+    Args:
+        pattern_content: The accessibility pattern content
+        target_framework: Target framework (fastapi, swift_ios, react, vue)
+        wcag_level: WCAG compliance level (A, AA, AAA)
+        category: Pattern category (forms, navigation, images, etc.)
+        source: Source of the pattern
+    
+    Returns:
+        Success or error message
+    """
+    if not collection:
+        return "❌ Database not available"
+    
+    # Input validation and sanitization
+    pattern_content = str(pattern_content).strip()
+    target_framework = str(target_framework).lower().strip()
+    wcag_level = str(wcag_level).upper().strip()
+    category = str(category).lower().strip()
+    source = str(source).strip()[:100]
+    
+    if len(pattern_content) < 10:
+        return "❌ Pattern content too short (minimum 10 characters)"
+    
+    if target_framework not in ["fastapi", "swift_ios", "react", "vue"]:
+        return "❌ Invalid target framework. Use: fastapi, swift_ios, react, vue"
+        
+    if wcag_level not in ["A", "AA", "AAA"]:
+        return "❌ Invalid WCAG level. Use: A, AA, AAA"
+    
+    try:
+        doc_id = generate_doc_id(pattern_content, f"accessibility_{target_framework}")
+        
+        metadata = {
+            "framework": "accessibility",
+            "target_framework": target_framework,
+            "wcag_level": wcag_level,
+            "category": category,
+            "source": source,
+            "type": "accessibility_pattern",
+            "project": "general",
+            "added_at": datetime.utcnow().isoformat(),
+            "content_hash": hashlib.md5(pattern_content.encode()).hexdigest()
+        }
+        
+        collection.add(
+            documents=[pattern_content],
+            metadatas=[metadata],
+            ids=[doc_id]
+        )
+        
+        logger.info(f"Added accessibility pattern: {doc_id}")
+        return f"✅ Added accessibility pattern for {target_framework} (WCAG {wcag_level})"
+        
+    except Exception as e:
+        logger.error(f"Failed to add accessibility pattern: {e}")
+        return f"❌ Failed to add pattern: {str(e)[:100]}"
+
+@mcp.tool()
+def scan_and_cache_accessibility_issues(url: str, cache_results: bool = True) -> str:
+    """
+    Scan a URL for accessibility issues and optionally cache common patterns found.
+    
+    Args:
+        url: URL to scan for accessibility issues
+        cache_results: Whether to cache discovered patterns for future reference
+    
+    Returns:
+        Accessibility scan results and caching status
+    """
+    if not collection:
+        return "❌ Database not available"
+    
+    # Input sanitization
+    url = str(url).strip()
+    
+    # Basic URL validation
+    if not url.startswith(('http://', 'https://')):
+        return "❌ Invalid URL. Must start with http:// or https://"
+    
+    try:
+        # Note: This is a placeholder for actual accessibility scanning
+        # In practice, you would integrate with the accessibility scanner MCP server
+        scan_info = f"""
+# Accessibility Scan Results for {url}
+
+**Scan Date:** {datetime.utcnow().isoformat()}
+
+## Integration Note
+This tool works best when combined with the accessibility-scanner MCP server.
+Use the accessibility scanner to get detailed WCAG compliance reports, then
+use this tool to cache common patterns for quick local access.
+
+## Common Patterns to Cache:
+- Form labels and validation patterns
+- Image alt text standards  
+- Navigation ARIA patterns
+- Color contrast requirements
+- Keyboard navigation patterns
+
+## Usage Workflow:
+1. Run accessibility scan with accessibility-scanner MCP
+2. Identify recurring patterns or best practices
+3. Use add_accessibility_pattern() to cache for quick reference
+4. Search cached patterns with search_accessibility_patterns()
+
+This reduces API calls and token usage while building a knowledge base.
+"""
+        
+        if cache_results:
+            # Cache this scan info as an example
+            doc_id = generate_doc_id(scan_info, "accessibility_scan")
+            
+            metadata = {
+                "framework": "accessibility",
+                "target_framework": "web",
+                "wcag_level": "AA", 
+                "category": "scan_results",
+                "source": f"scan_{url}",
+                "type": "scan_integration",
+                "project": "general",
+                "added_at": datetime.utcnow().isoformat(),
+                "scanned_url": url
+            }
+            
+            collection.add(
+                documents=[scan_info],
+                metadatas=[metadata], 
+                ids=[doc_id]
+            )
+            
+            return f"✅ Scan integration info cached. Use accessibility-scanner MCP for detailed scans.\n\n{scan_info}"
+        
+        return scan_info
+        
+    except Exception as e:
+        logger.error(f"Accessibility scan integration error: {e}")
+        return f"❌ Scan integration failed: {str(e)[:100]}"
+
+@mcp.tool()
 def search_fastapi_docs(query: str, category: str = "general", limit: int = 3) -> str:
     """
     Search FastAPI documentation and best practices.

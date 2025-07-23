@@ -401,18 +401,21 @@ class SwiftUIDocsSource(BaseDocumentationSource):
     
     async def postprocess_metadata(self, metadata: DocumentMetadata) -> DocumentMetadata:
         """Enhance SwiftUI metadata"""
-        # Add platform-specific tags
-        if "macos" in metadata.content.lower()[:500]:
+        # Add platform-specific tags based on URL patterns
+        url_lower = metadata.url.lower()
+        title_lower = metadata.title.lower()
+        
+        if "macos" in url_lower or "macos" in title_lower:
             metadata.tags.append("macos_specific")
-        if "watchos" in metadata.content.lower()[:500]:
+        if "watchos" in url_lower or "watchos" in title_lower:
             metadata.tags.append("watchos_specific")
-        if "tvos" in metadata.content.lower()[:500]:
+        if "tvos" in url_lower or "tvos" in title_lower:
             metadata.tags.append("tvos_specific")
         
         # Add complexity level
-        if any(term in metadata.title.lower() for term in ["getting started", "basics", "introduction"]):
+        if any(term in title_lower for term in ["getting started", "basics", "introduction"]):
             metadata.tags.append("beginner")
-        elif any(term in metadata.title.lower() for term in ["advanced", "custom", "complex"]):
+        elif any(term in title_lower for term in ["advanced", "custom", "complex"]):
             metadata.tags.append("advanced")
         else:
             metadata.tags.append("intermediate")

@@ -497,21 +497,23 @@ class FigmaDocsSource(BaseDocumentationSource):
     
     async def postprocess_metadata(self, metadata: DocumentMetadata) -> DocumentMetadata:
         """Enhance Figma metadata"""
-        # Add API version tags if mentioned
-        content_lower = metadata.content.lower()[:600]
-        if "api v1" in content_lower or "version 1" in content_lower:
+        # Add API version tags based on URL patterns
+        url_lower = metadata.url.lower()
+        title_lower = metadata.title.lower()
+        
+        if "v1" in url_lower or "version 1" in title_lower:
             metadata.tags.append("api_v1")
         
-        # Add SDK tags if mentioned
-        if any(sdk in content_lower for sdk in ["figma-js", "figma-api", "sdk"]):
+        # Add SDK tags if mentioned in URL or title
+        if any(sdk in url_lower or sdk in title_lower for sdk in ["js", "api", "sdk"]):
             metadata.tags.append("sdk_integration")
         
-        # Add platform tags
-        if any(platform in content_lower for platform in ["web", "desktop", "mobile"]):
+        # Add platform tags based on URL patterns
+        if any(platform in url_lower or platform in title_lower for platform in ["web", "desktop", "mobile"]):
             metadata.tags.append("cross_platform")
         
-        # Add security tags
-        if any(term in content_lower for term in ["oauth", "token", "security", "permission"]):
+        # Add security tags based on URL patterns
+        if any(term in url_lower or term in title_lower for term in ["oauth", "token", "security", "permission", "auth"]):
             metadata.tags.append("security")
         
         return metadata
