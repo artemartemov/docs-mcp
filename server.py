@@ -234,14 +234,58 @@ def search_python_docs(query: str, category: str = "general", limit: int = 3) ->
             logger.warning("Documentation database not available for Python search")
             return "❌ Documentation database not available"
 
+        # Enhanced search with intelligent prioritization
         search_text = f"Python {request.category} {request.query}"
-
-        results = collection.query(
+        
+        # First try to find official documentation
+        official_results = collection.query(
             query_texts=[search_text],
             n_results=request.limit,
-            where={"framework": "python"},
+            where={
+                "$and": [
+                    {"framework": "python"},
+                    {"source": "Python Official Documentation"}
+                ]
+            },
             include=["documents", "metadatas", "distances"],
         )
+        
+        # If we have enough official results, use them, otherwise supplement
+        if len(official_results["documents"][0]) >= request.limit:
+            results = official_results
+        else:
+            # Supplement with other Python documentation
+            supplement_results = collection.query(
+                query_texts=[search_text],
+                n_results=request.limit * 2,  # Get more to filter
+                where={"framework": "python"},
+                include=["documents", "metadatas", "distances"],
+            )
+            
+            # Combine and deduplicate results
+            combined_docs = official_results["documents"][0] + supplement_results["documents"][0]
+            combined_metadata = official_results["metadatas"][0] + supplement_results["metadatas"][0]
+            combined_distances = official_results["distances"][0] + supplement_results["distances"][0]
+            
+            # Remove duplicates and limit results
+            seen_urls = set()
+            final_docs = []
+            final_metadata = []
+            final_distances = []
+            
+            for doc, meta, dist in zip(combined_docs, combined_metadata, combined_distances):
+                url = meta.get("url", "")
+                if url not in seen_urls and len(final_docs) < request.limit:
+                    seen_urls.add(url)
+                    final_docs.append(doc)
+                    final_metadata.append(meta)
+                    final_distances.append(dist)
+            
+            results = {
+                "documents": [final_docs],
+                "metadatas": [final_metadata],
+                "distances": [final_distances]
+            }
 
         logger.info(
             f"Python search completed: query='{request.query}', results={len(results['documents'][0])}"
@@ -540,6 +584,96 @@ def add_project_documentation(
         logger.error(f"Failed to add documentation: {e}")
         return "❌ Failed to add documentation"
 
+
+@mcp.tool()
+def ingest_documentation_source(source: str = "python", test_mode: bool = False) -> str:
+    """
+    Ingest documentation from a specific source into the knowledge base.
+    
+    Args:
+        source: Documentation source ("python", etc.)
+        test_mode: Run in test mode with limited content for safety
+    
+    Returns:
+        Status message with ingestion results
+    """
+    try:
+        import subprocess
+        import sys
+        
+        # Build command
+        cmd = [sys.executable, "ingest_documentation.py", "--source", source]
+        if test_mode:
+            cmd.append("--test")
+        
+        logger.info(f"Starting documentation ingestion: {' '.join(cmd)}")
+        
+        # Run ingestion process
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=1800  # 30 minute timeout
+        )
+        
+        if result.returncode == 0:
+            # Parse the output for summary information
+            output_lines = result.stdout.split('\n')
+            summary_started = False
+            summary_lines = []
+            
+            for line in output_lines:
+                if "INGESTION SUMMARY" in line:
+                    summary_started = True
+                elif summary_started and line.strip():
+                    summary_lines.append(line)
+                elif summary_started and not line.strip():
+                    break
+            
+            summary = '\n'.join(summary_lines[-10:])  # Last 10 lines of summary
+            
+            return f"""✅ Documentation ingestion completed successfully!
+
+Source: {source}
+Test Mode: {'Yes' if test_mode else 'No'}
+
+Recent Summary:
+{summary}
+
+Full logs available in: logs/documentation_ingestion.log
+"""
+        else:
+            error_output = result.stderr[-500:] if result.stderr else "Unknown error"
+            logger.error(f"Documentation ingestion failed: {error_output}")
+            return f"❌ Documentation ingestion failed:\n{error_output}"
+            
+    except subprocess.TimeoutExpired:
+        return "❌ Documentation ingestion timed out (30 minutes)"
+    except Exception as e:
+        logger.error(f"Documentation ingestion error: {e}")
+        return f"❌ Documentation ingestion error: {e}"
+
+@mcp.tool()
+def list_documentation_sources() -> str:
+    """List all available documentation sources for ingestion."""
+    try:
+        from ingest_documentation import IngestionConfig
+        
+        sources_info = []
+        for source_name in IngestionConfig.list_available_sources():
+            config = IngestionConfig.get_source_info(source_name)
+            sources_info.append(f"• **{source_name}**: {config.get('description', 'No description')}")
+        
+        return f"""📚 Available Documentation Sources:
+
+{chr(10).join(sources_info)}
+
+Usage: Use `ingest_documentation_source()` to populate the knowledge base.
+Example: `ingest_documentation_source("python", test_mode=True)`
+"""
+    except Exception as e:
+        logger.error(f"Error listing sources: {e}")
+        return f"❌ Error listing sources: {e}"
 
 @mcp.tool()
 def get_collection_stats() -> str:
