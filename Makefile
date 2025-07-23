@@ -111,16 +111,16 @@ ingest-react: ## Ingest React.js official documentation
 	@echo "⚛️  Ingesting React.js documentation..."
 	./run_ingestion.sh --source react
 
-ingest-swiftui: ## Ingest SwiftUI official documentation
-	@echo "🍎 Ingesting SwiftUI documentation..."
+ingest-swiftui: ## Ingest SwiftUI official documentation (with browser automation)
+	@echo "🍎 Ingesting SwiftUI documentation with browser automation..."
 	./run_ingestion.sh --source swiftui
 
 ingest-tailwind: ## Ingest Tailwind CSS official documentation
 	@echo "🎨 Ingesting Tailwind CSS documentation..."
 	./run_ingestion.sh --source tailwind
 
-ingest-figma: ## Ingest Figma API official documentation
-	@echo "🎨 Ingesting Figma API documentation..."
+ingest-figma: ## Ingest Figma API official documentation (with browser automation)
+	@echo "🎨 Ingesting Figma API documentation with browser automation..."
 	./run_ingestion.sh --source figma
 
 ingest-fastapi: ## Ingest FastAPI official documentation

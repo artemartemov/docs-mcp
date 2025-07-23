@@ -1,8 +1,8 @@
 """
-Figma API Documentation Adapter.
+Figma API Documentation Adapter with Browser Automation.
 
 Handles Figma API documentation from figma.com.
-Figma has well-structured API docs with clear REST endpoints.
+Uses browser automation to properly handle React SPA content.
 """
 
 import asyncio
@@ -13,23 +13,26 @@ from urllib.parse import urljoin, urlparse
 from bs4 import BeautifulSoup
 import json
 
-from ..base import BaseDocumentationSource, DocumentContent, DocumentMetadata
+from ..spa_base import SPADocumentationSource
+from ..base import DocumentContent, DocumentMetadata
 
 logger = logging.getLogger(__name__)
 
-class FigmaDocsSource(BaseDocumentationSource):
-    """Figma API official documentation source"""
+class FigmaDocsSource(SPADocumentationSource):
+    """Figma API official documentation source with browser automation"""
     
-    def __init__(self, version: str = "latest"):
+    def __init__(self, version: str = "latest", use_browser: bool = True):
         self.version = version
         base_url = "https://www.figma.com/developers/api/"
-        super().__init__(f"Figma API {version} Docs", base_url)
-        
-        self.session: Optional[aiohttp.ClientSession] = None
+        super().__init__(f"Figma API {version} Docs", base_url, use_browser=use_browser)
         
         # Configure for respectful scraping
         self.rate_limit_delay = 1.2  # Respectful for Figma
         self.batch_size = 20
+        
+        # Figma-specific browser automation settings
+        self.js_wait_timeout = 12000  # Figma React app can take time
+        self.network_idle_timeout = 2500  # Wait for API calls to complete
         
         # Figma API documentation structure
         self.priority_sections = {
@@ -45,68 +48,48 @@ class FigmaDocsSource(BaseDocumentationSource):
             ".png", ".jpg", ".svg", "/assets/"
         }
         
-        # Known important Figma API documentation URLs
+        # Comprehensive Figma API documentation URLs for SPA extraction
         self.core_urls = [
             "",  # Base API docs
             
-            # Introduction & Setup
+            # Getting Started
             "introduction/",
-            "authentication/",
+            "authentication/", 
             "rate-limiting/",
             "errors/",
-            "versioning/",
             
-            # Core API Endpoints
+            # Files API - Core functionality
             "files/",
             "files/images/",
             "files/nodes/",
-            "files/styles/",
-            "files/components/",
             
-            # Comments
+            # Comments API
             "comments/",
-            "comments/post/",
-            "comments/delete/",
             
             # Users & Teams
-            "users/me/",
+            "users/",
             "teams/",
-            "team-projects/",
-            "team-components/",
-            "team-styles/",
             
-            # Projects
-            "projects/",
-            "project-files/",
-            
-            # Components & Styles
+            # Components & Styles  
             "components/",
-            "component-sets/",
             "styles/",
             
             # Variables (Design Tokens)
             "variables/",
-            "variable-collections/",
-            
-            # Dev Mode & Resources
-            "dev-resources/",
-            "dev-resources/code/",
-            "dev-resources/inspect/",
             
             # Webhooks
             "webhooks/",
-            "webhook-events/",
-            "webhook-security/",
             
             # Plugins
-            "plugins/",
-            "plugin-api/",
-            "plugin-manifest/",
-            "plugin-widgets/"
+            "plugins/"
         ]
     
     async def __aenter__(self):
-        """Initialize async HTTP session"""
+        """Initialize browser automation and HTTP session"""
+        # Initialize parent SPA functionality (browser automation)
+        await super().__aenter__()
+        
+        # Initialize HTTP session for fallback
         connector = aiohttp.TCPConnector(limit_per_host=2)
         timeout = aiohttp.ClientTimeout(total=30)
         
@@ -122,9 +105,12 @@ class FigmaDocsSource(BaseDocumentationSource):
         return self
     
     async def __aexit__(self, exc_type, exc_val, exc_tb):
-        """Close async HTTP session"""
+        """Close HTTP session and browser"""
         if self.session:
             await self.session.close()
+        
+        # Close parent SPA resources
+        await super().__aexit__(exc_type, exc_val, exc_tb)
     
     def get_framework_name(self) -> str:
         return "figma"
@@ -182,6 +168,136 @@ class FigmaDocsSource(BaseDocumentationSource):
             logger.info(f"   {section}: {count} pages")
         
         return sorted(filtered_urls)
+    
+    async def _framework_specific_wait(self, page, url: str):
+        """Figma-specific waiting logic for React SPA content"""
+        try:
+            # Wait for Figma's documentation-specific elements
+            figma_selectors = [
+                '[data-testid="documentation"]',
+                '.docs-content',
+                '.api-docs',
+                '.documentation',
+                '.content-wrapper',
+                'main[role="main"]'
+            ]
+            
+            for selector in figma_selectors:
+                try:
+                    await page.wait_for_selector(selector, timeout=3000)
+                    logger.debug(f"✅ Found Figma doc selector: {selector}")
+                    return
+                except:
+                    continue
+            
+            # Wait for React to render content
+            await page.wait_for_function(
+                "document.body.innerText.length > 1000", 
+                timeout=self.js_wait_timeout
+            )
+            
+            # Additional wait for dynamic content loading
+            await asyncio.sleep(2)
+            
+        except Exception as e:
+            logger.debug(f"⚠️  Figma-specific wait failed for {url}: {e}")
+    
+    async def _framework_specific_content_extraction(self, page, url: str) -> Optional[str]:
+        """Figma-specific content extraction from rendered React SPA"""
+        try:
+            # Try Figma's specific content selectors
+            figma_content_selectors = [
+                'main[role="main"]',
+                '.docs-content',
+                '.api-docs .content',
+                '.documentation-content',
+                '[data-testid="documentation"]',
+                '.content-wrapper'
+            ]
+            
+            for selector in figma_content_selectors:
+                try:
+                    content = await page.text_content(selector)
+                    if content and len(content.strip()) > 300:
+                        logger.debug(f"✅ Extracted Figma content using: {selector}")
+                        return content.strip()
+                except:
+                    continue
+            
+            # Advanced extraction: Remove known navigation/UI elements and get body content
+            content = await page.evaluate("""
+                () => {
+                    // Remove common Figma navigation and UI elements
+                    const elementsToRemove = document.querySelectorAll(`
+                        nav, .navigation, .sidebar, header, footer, .breadcrumbs,
+                        .cookie-banner, .newsletter-signup, script, style,
+                        [data-testid="header"], [data-testid="footer"],
+                        [data-testid="sidebar"], [data-testid="navigation"]
+                    `);
+                    elementsToRemove.forEach(el => el.remove());
+                    
+                    // Get main content from body
+                    const body = document.body;
+                    return body ? body.innerText : '';
+                }
+            """)
+            
+            if content and len(content.strip()) > 300:
+                return content.strip()
+                
+            # Last resort: get any text content that mentions API-related terms
+            content = await page.evaluate("""
+                () => {
+                    const text = document.body.innerText;
+                    if (text.includes('API') || text.includes('endpoint') || text.includes('REST')) {
+                        return text;
+                    }
+                    return '';
+                }
+            """)
+            
+            if content and len(content.strip()) > 200:
+                return content.strip()
+                
+        except Exception as e:
+            logger.debug(f"⚠️  Figma content extraction failed for {url}: {e}")
+        
+        return None
+    
+    async def _clean_title(self, title: str) -> str:
+        """Clean Figma documentation titles"""
+        # Remove Figma suffix variations
+        if " | Figma for Developers" in title:
+            title = title.split(" | Figma for Developers")[0].strip()
+        elif " - Figma" in title:
+            title = title.split(" - Figma")[0].strip()
+        elif "Figma" == title:
+            title = "Figma API Documentation"
+        
+        return title.strip()
+    
+    async def _create_metadata(self, url: str, title: str, content: str) -> DocumentMetadata:
+        """Create Figma-specific metadata"""
+        section = self._extract_section_from_url(url)
+        doc_type = self._determine_doc_type(url, title, content)
+        subsection = self._extract_subsection(url)
+        tags = self._generate_tags(url, title, content)
+        
+        # Add browser-extracted tag
+        tags.append("browser_extracted")
+        
+        return DocumentMetadata(
+            framework="figma",
+            source="Figma API Official Documentation",
+            doc_type=doc_type,
+            title=title,
+            url=url,
+            section=section,
+            subsection=subsection,
+            version=self.version,
+            language="en",
+            tags=tags
+        )
     
     async def _discover_from_navigation(self) -> Set[str]:
         """Discover URLs by crawling navigation"""
@@ -316,13 +432,16 @@ class FigmaDocsSource(BaseDocumentationSource):
         
         return "api_reference"
     
-    async def extract_content(self, url: str) -> Optional[DocumentContent]:
-        """Extract content from a single Figma API documentation page"""
+    async def extract_content_fallback(self, url: str) -> Optional[DocumentContent]:
+        """
+        Fallback content extraction using traditional HTTP + BeautifulSoup.
+        This provides a fallback when browser automation is not available.
+        """
         try:
             # Rate limiting
             await asyncio.sleep(self.rate_limit_delay)
             
-            # Fetch page content
+            # Fetch page content using the parent's session
             async with self.session.get(url) as response:
                 if response.status != 200:
                     logger.warning(f"HTTP {response.status} for {url}")
@@ -336,95 +455,19 @@ class FigmaDocsSource(BaseDocumentationSource):
             # Extract title
             title_elem = soup.find('title')
             title = title_elem.get_text().strip() if title_elem else ""
+            title = await self._clean_title(title)
             
-            # Clean title - remove Figma suffix
-            if " | Figma for Developers" in title:
-                title = title.split(" | Figma for Developers")[0].strip()
-            elif " - Figma" in title:
-                title = title.split(" - Figma")[0].strip()
+            # For SPAs, we likely won't get much content, so provide informative message
+            content_text = "Content not available due to React SPA architecture. Please use browser mode for complete Figma API documentation."
             
-            # Extract main content - Figma uses SPA, so try multiple approaches
-            content_selectors = [
-                'main',
-                '[role="main"]',
-                '.docs-content',
-                '.api-docs',
-                'article',
-                '.content',
-                '.documentation',
-                'body',  # Fallback to body for SPAs
-                '#root',  # Common React root
-                '.app',   # Common app container
-            ]
-            
-            content_div = None
-            for selector in content_selectors:
-                content_div = soup.select_one(selector)
-                if content_div:
-                    break
-            
-            if not content_div:
-                # For SPAs, sometimes we need to extract from the entire body
-                logger.info(f"Using fallback content extraction for SPA: {url}")
-                content_div = soup.find('body')
-                
-            if not content_div:
-                logger.warning(f"No content found for {url}")
-                # Return basic metadata even if content extraction fails
-                metadata = DocumentMetadata(
-                    framework="figma",
-                    source="Figma API Official Documentation",
-                    doc_type="api_reference",
-                    title=title or "Figma API Documentation",
-                    url=url,
-                    section=self._extract_section_from_url(url),
-                    subsection=self._extract_subsection(url),
-                    version=self.version,
-                    language="en",
-                    tags=["api", "figma", "spa_limitation"]
-                )
-                return DocumentContent(content="Content not available due to SPA architecture.", metadata=metadata)
-            
-            # Remove navigation, ads, and non-content elements
-            for element in content_div.find_all([
-                'nav', 'header', 'footer', 'aside', 'script', 'style',
-                '.navigation', '.sidebar', '.header', '.footer',
-                '.breadcrumb', '.search', '.feedback'
-            ]):
-                element.decompose()
-            
-            # Extract clean text content
-            content_text = content_div.get_text()
-            content_text = ' '.join(content_text.split())  # Normalize whitespace
-            
-            # Skip very short content
-            if len(content_text) < 200:
-                logger.debug(f"Skipping short content for {url}")
-                return None
-            
-            # Determine document metadata
-            section = self._extract_section_from_url(url)
-            doc_type = self._determine_doc_type(url, title, content_text)
-            subsection = self._extract_subsection(url)
-            
-            # Create metadata
-            metadata = DocumentMetadata(
-                framework="figma",
-                source="Figma API Official Documentation",
-                doc_type=doc_type,
-                title=title,
-                url=url,
-                section=section,
-                subsection=subsection,
-                version=self.version,
-                language="en",
-                tags=self._generate_tags(url, title, content_text)
-            )
+            # Create basic metadata
+            metadata = await self._create_metadata(url, title, content_text)
+            metadata.tags.append("fallback_extraction")
             
             return DocumentContent(content=content_text, metadata=metadata)
             
         except Exception as e:
-            logger.error(f"Error extracting content from {url}: {e}")
+            logger.error(f"Error in fallback extraction for {url}: {e}")
             return None
     
     def _determine_doc_type(self, url: str, title: str, content: str) -> str:

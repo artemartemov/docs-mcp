@@ -1,8 +1,8 @@
 """
-SwiftUI Documentation Adapter.
+SwiftUI Documentation Adapter with Browser Automation.
 
 Handles Apple's SwiftUI documentation from developer.apple.com.
-Apple docs have a specific structure and require careful handling.
+Uses browser automation to properly extract JavaScript-rendered content.
 """
 
 import asyncio
@@ -13,23 +13,26 @@ from urllib.parse import urljoin, urlparse
 from bs4 import BeautifulSoup
 import json
 
-from ..base import BaseDocumentationSource, DocumentContent, DocumentMetadata
+from ..spa_base import SPADocumentationSource
+from ..base import DocumentContent, DocumentMetadata
 
 logger = logging.getLogger(__name__)
 
-class SwiftUIDocsSource(BaseDocumentationSource):
-    """SwiftUI official documentation source from Apple Developer"""
+class SwiftUIDocsSource(SPADocumentationSource):
+    """SwiftUI official documentation source from Apple Developer with browser automation"""
     
-    def __init__(self, version: str = "latest"):
+    def __init__(self, version: str = "latest", use_browser: bool = True):
         self.version = version
         base_url = "https://developer.apple.com/documentation/swiftui/"
-        super().__init__(f"SwiftUI {version} Official Docs", base_url)
-        
-        self.session: Optional[aiohttp.ClientSession] = None
+        super().__init__(f"SwiftUI {version} Official Docs", base_url, use_browser=use_browser)
         
         # Configure for very respectful scraping (Apple is strict)
         self.rate_limit_delay = 2.0  # Extra respectful for Apple
         self.batch_size = 10
+        
+        # Apple-specific browser automation settings
+        self.js_wait_timeout = 15000  # Apple docs can be slow
+        self.network_idle_timeout = 3000  # Extra time for Apple's complex JS
         
         # SwiftUI documentation structure
         self.priority_sections = {
@@ -43,35 +46,43 @@ class SwiftUIDocsSource(BaseDocumentationSource):
             "/downloads/", "wwdc", "/beta/", "/release-notes/"
         }
         
-        # Known important SwiftUI documentation URLs
+        # Known important SwiftUI documentation URLs - expanded for comprehensive coverage
         self.core_urls = [
             "",  # Base SwiftUI docs
-            "text",
-            "button", 
-            "image",
-            "vstack",
-            "hstack",
-            "list",
-            "navigationview",
-            "tabview",
-            "form",
-            "picker",
-            "toggle",
-            "slider",
-            "stepper",
-            "textfield",
-            "securefield",
-            "state",
-            "binding",
-            "observedobject",
-            "environmentobject",
-            "view",
-            "app",
-            "scene"
+            
+            # Basic Views
+            "text", "button", "image", "label", "link",
+            
+            # Layout
+            "vstack", "hstack", "zstack", "spacer", 
+            "divider", "group", "section",
+            
+            # Lists and Navigation
+            "list", "navigationview", "navigationlink", "tabview",
+            "navigationstack", "navigationdestination",
+            
+            # Form Controls  
+            "form", "picker", "toggle", "slider", "stepper",
+            "textfield", "securefield", "texteditor",
+            
+            # Data Flow
+            "state", "binding", "observedobject", "environmentobject",
+            "stateobject", "environment", "published",
+            
+            # Core Types
+            "view", "app", "scene", "viewmodifier",
+            
+            # Advanced
+            "geometryreader", "scrollview", "sheet", "alert",
+            "confirmationdialog", "popover", "toolbar"
         ]
     
     async def __aenter__(self):
-        """Initialize async HTTP session with Apple-friendly headers"""
+        """Initialize browser automation and HTTP session"""
+        # Initialize parent SPA functionality (browser automation)
+        await super().__aenter__()
+        
+        # Initialize HTTP session for fallback
         connector = aiohttp.TCPConnector(limit_per_host=1)  # Very conservative
         timeout = aiohttp.ClientTimeout(total=45)  # Apple can be slow
         
@@ -89,9 +100,12 @@ class SwiftUIDocsSource(BaseDocumentationSource):
         return self
     
     async def __aexit__(self, exc_type, exc_val, exc_tb):
-        """Close async HTTP session"""
+        """Close HTTP session and browser"""
         if self.session:
             await self.session.close()
+        
+        # Close parent SPA resources
+        await super().__aexit__(exc_type, exc_val, exc_tb)
     
     def get_framework_name(self) -> str:
         return "swiftui"
@@ -108,20 +122,8 @@ class SwiftUIDocsSource(BaseDocumentationSource):
         
         discovered_urls = set()
         
-        # Use a simplified approach with known working patterns
-        simplified_core_urls = [
-            "",  # Base SwiftUI docs
-            "text",
-            "button", 
-            "image",
-            "vstack",
-            "hstack",
-            "list",
-            "view",
-            "app"
-        ]
-        
-        for path in simplified_core_urls:
+        # Use the expanded core URLs for comprehensive coverage
+        for path in self.core_urls:
             full_url = urljoin(self.base_url, path)
             discovered_urls.add(full_url)
         
@@ -146,6 +148,112 @@ class SwiftUIDocsSource(BaseDocumentationSource):
             logger.info(f"   {section}: {count} pages")
         
         return sorted(filtered_urls)
+    
+    async def _framework_specific_wait(self, page, url: str):
+        """Apple-specific waiting logic for JavaScript content"""
+        try:
+            # Wait for Apple's documentation-specific elements
+            apple_selectors = [
+                '.documentation-topic',
+                '.topic-content', 
+                '.documentation-content',
+                '.doc-topic',
+                '#doc-topic'
+            ]
+            
+            for selector in apple_selectors:
+                try:
+                    await page.wait_for_selector(selector, timeout=3000)
+                    logger.debug(f"✅ Found Apple doc selector: {selector}")
+                    return
+                except:
+                    continue
+            
+            # Wait for any content to appear (fallback)
+            await page.wait_for_function(
+                "document.body.innerText.length > 500", 
+                timeout=self.js_wait_timeout
+            )
+            
+        except Exception as e:
+            logger.debug(f"⚠️  Apple-specific wait failed for {url}: {e}")
+    
+    async def _framework_specific_content_extraction(self, page, url: str) -> Optional[str]:
+        """Apple-specific content extraction from rendered page"""
+        try:
+            # Try Apple's specific content selectors
+            apple_content_selectors = [
+                '.documentation-topic .topic-content',
+                '.documentation-content',
+                '.doc-topic .content',
+                '#doc-topic',
+                '.topic-content'
+            ]
+            
+            for selector in apple_content_selectors:
+                try:
+                    content = await page.text_content(selector)
+                    if content and len(content.strip()) > 200:
+                        logger.debug(f"✅ Extracted Apple content using: {selector}")
+                        return content.strip()
+                except:
+                    continue
+            
+            # Fallback: try to get meaningful content from the body
+            content = await page.evaluate("""
+                () => {
+                    // Remove navigation, sidebars, and other non-content elements
+                    const elementsToRemove = document.querySelectorAll(
+                        'nav, .navigation, .sidebar, header, footer, .breadcrumbs, script, style'
+                    );
+                    elementsToRemove.forEach(el => el.remove());
+                    
+                    // Get the main content area
+                    const mainContent = document.querySelector('main, [role="main"], .main-content, body');
+                    return mainContent ? mainContent.innerText : '';
+                }
+            """)
+            
+            if content and len(content.strip()) > 200:
+                return content.strip()
+                
+        except Exception as e:
+            logger.debug(f"⚠️  Apple content extraction failed for {url}: {e}")
+        
+        return None
+    
+    async def _clean_title(self, title: str) -> str:
+        """Clean Apple documentation titles"""
+        # Remove Apple Developer Documentation suffix
+        if " | Apple Developer Documentation" in title:
+            title = title.split(" | Apple Developer Documentation")[0].strip()
+        elif " - Apple Developer" in title:
+            title = title.split(" - Apple Developer")[0].strip()
+        
+        return title.strip()
+    
+    async def _create_metadata(self, url: str, title: str, content: str) -> DocumentMetadata:
+        """Create SwiftUI-specific metadata"""
+        section = self._extract_section_from_url(url)
+        doc_type = self._determine_doc_type(url, title, content)
+        subsection = self._extract_subsection(url)
+        tags = self._generate_tags(url, title, content)
+        
+        # Add browser-extracted tag
+        tags.append("browser_extracted")
+        
+        return DocumentMetadata(
+            framework="swiftui",
+            source="Apple Developer Documentation",
+            doc_type=doc_type,
+            title=title,
+            url=url,
+            section=section,
+            subsection=subsection,
+            version=self.version,
+            language="en",
+            tags=tags
+        )
     
     async def _discover_from_main_page(self) -> Set[str]:
         """Discover URLs from the main SwiftUI documentation page"""
@@ -245,13 +353,16 @@ class SwiftUIDocsSource(BaseDocumentationSource):
         else:
             return "swiftui"
     
-    async def extract_content(self, url: str) -> Optional[DocumentContent]:
-        """Extract content from a single SwiftUI documentation page"""
+    async def extract_content_fallback(self, url: str) -> Optional[DocumentContent]:
+        """
+        Fallback content extraction using traditional HTTP + BeautifulSoup.
+        This provides a fallback when browser automation is not available.
+        """
         try:
             # Rate limiting - extra careful with Apple
             await asyncio.sleep(self.rate_limit_delay)
             
-            # Fetch page content
+            # Fetch page content using the parent's session
             async with self.session.get(url) as response:
                 if response.status != 200:
                     logger.warning(f"HTTP {response.status} for {url}")
@@ -262,86 +373,22 @@ class SwiftUIDocsSource(BaseDocumentationSource):
             # Parse with BeautifulSoup
             soup = BeautifulSoup(html_content, 'html.parser')
             
-            # Extract title - Apple has specific title structure
+            # Extract title
             title_elem = soup.find('title')
             title = title_elem.get_text().strip() if title_elem else ""
+            title = await self._clean_title(title)
             
-            # Clean title - remove Apple developer suffix
-            if " | Apple Developer Documentation" in title:
-                title = title.split(" | Apple Developer Documentation")[0].strip()
+            # Try to extract any available content (likely minimal due to JS dependency)
+            content_text = "Content not available due to JavaScript dependency. Please use browser mode or Xcode documentation viewer for complete SwiftUI reference."
             
-            # Extract main content - Apple uses specific classes
-            content_selectors = [
-                '.documentation-content',
-                '.content',
-                'main[role="main"]',
-                '.main-content',
-                'article'
-            ]
-            
-            content_div = None
-            for selector in content_selectors:
-                content_div = soup.select_one(selector)
-                if content_div:
-                    break
-            
-            if not content_div:
-                logger.info(f"No main content found for JavaScript-dependent page: {url}")
-                # Return basic metadata even if content extraction fails
-                metadata = DocumentMetadata(
-                    framework="swiftui",
-                    source="Apple Developer Documentation",
-                    doc_type="api_reference",
-                    title=title or "SwiftUI Documentation",
-                    url=url,
-                    section=self._extract_section_from_url(url),
-                    subsection=self._extract_subsection(url),
-                    version=self.version,
-                    language="en",
-                    tags=["ios", "macos", "apple", "javascript_limitation"]
-                )
-                return DocumentContent(content="Content not available due to JavaScript dependency. Please use Xcode documentation viewer for complete SwiftUI reference.", metadata=metadata)
-            
-            # Remove navigation, ads, and non-content elements
-            for element in content_div.find_all([
-                'nav', 'header', 'footer', 'aside', 'script', 'style',
-                '.navigation', '.breadcrumbs', '.sidebar', 
-                '.developer-tools', '.download-sample'
-            ]):
-                element.decompose()
-            
-            # Extract clean text content
-            content_text = content_div.get_text()
-            content_text = ' '.join(content_text.split())  # Normalize whitespace
-            
-            # Skip very short content
-            if len(content_text) < 200:
-                logger.debug(f"Skipping short content for {url}")
-                return None
-            
-            # Determine document metadata
-            section = self._extract_section_from_url(url)
-            doc_type = self._determine_doc_type(url, title, content_text)
-            subsection = self._extract_subsection(url)
-            
-            # Create metadata
-            metadata = DocumentMetadata(
-                framework="swiftui",
-                source="Apple Developer Documentation",
-                doc_type=doc_type,
-                title=title,
-                url=url,
-                section=section,
-                subsection=subsection,
-                version=self.version,
-                language="en",
-                tags=self._generate_tags(url, title, content_text)
-            )
+            # Create basic metadata
+            metadata = await self._create_metadata(url, title, content_text)
+            metadata.tags.append("fallback_extraction")
             
             return DocumentContent(content=content_text, metadata=metadata)
             
         except Exception as e:
-            logger.error(f"Error extracting content from {url}: {e}")
+            logger.error(f"Error in fallback extraction for {url}: {e}")
             return None
     
     def _determine_doc_type(self, url: str, title: str, content: str) -> str:
