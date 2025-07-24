@@ -14,7 +14,14 @@ from pathlib import Path
 from typing import Optional, List
 
 # Import configurations and utilities
-from .config import get_settings
+try:
+    from .config import get_settings, validate_environment
+    from .constants import SUPPORTED_FRAMEWORKS
+    from .server import main as server_main
+except ImportError:
+    from config import get_settings, validate_environment
+    from constants import SUPPORTED_FRAMEWORKS
+    from server import main as server_main
 
 def run_script(script_name: str, framework: Optional[str] = None) -> int:
     """Run a script from the scripts directory."""
@@ -82,7 +89,7 @@ def run_test(test_name: Optional[str] = None, test_type: str = "all") -> int:
 def extract_command(args) -> int:
     """Handle extract command."""
     if args.framework == "all":
-        frameworks = ["python", "fastapi", "react", "swiftui", "tailwind", "figma", "figma_plugin", "css"]
+        frameworks = list(SUPPORTED_FRAMEWORKS)
         print("🚀 Extracting documentation for all frameworks...")
         
         for framework in frameworks:
@@ -139,20 +146,31 @@ def test_command(args) -> int:
 def server_command(args) -> int:
     """Handle server command."""
     if args.start:
-        server_path = Path(__file__).parent / "server.py"
+        print("🚀 Starting MCP server...")
         try:
-            cmd = [sys.executable, str(server_path)]
-            subprocess.run(cmd, check=True)
+            asyncio.run(server_main())
             return 0
-        except subprocess.CalledProcessError as e:
-            return e.returncode
+        except KeyboardInterrupt:
+            print("\n🛑 Server stopped by user")
+            return 0
+        except Exception as e:
+            print(f"❌ Server failed: {e}")
+            return 1
     elif args.config:
         settings = get_settings()
         print("📋 Current configuration:")
         print(f"  ChromaDB data directory: {settings.chroma_data_dir}")
         print(f"  Environment: {settings.environment}")
-        print(f"  MCP Server Host: {settings.mcp_server_host}")
-        print(f"  MCP Server Port: {settings.mcp_server_port}")
+        print(f"  Host: {settings.host}")
+        print(f"  Port: {settings.port}")
+        
+        # Validate configuration
+        try:
+            validate_environment()
+            print("✅ Configuration is valid")
+        except Exception as e:
+            print(f"⚠️  Configuration warning: {e}")
+        
         return 0
     else:
         print("🖥️  Available server options:")
@@ -222,9 +240,10 @@ Examples:
     
     # Extract command
     extract_parser = subparsers.add_parser("extract", help="Extract documentation")
+    framework_choices = list(SUPPORTED_FRAMEWORKS) + ["all"]
     extract_parser.add_argument(
         "--framework", 
-        choices=["python", "fastapi", "react", "swiftui", "tailwind", "figma", "figma_plugin", "css", "all"],
+        choices=framework_choices,
         required=True,
         help="Framework to extract documentation for"
     )
