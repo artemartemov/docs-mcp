@@ -23,7 +23,7 @@ from chromadb.config import Settings as ChromaSettings
 
 from .config import get_settings, validate_environment, create_log_directory
 from .constants import DANGEROUS_CHARS, DEFAULT_SEARCH_LIMIT, MAX_CONTENT_LENGTH
-from .exceptions import ValidationError
+from .exceptions import ValidationError, DatabaseError
 
 # Initialize settings and validate environment
 settings = get_settings()
@@ -107,7 +107,8 @@ def initialize_chroma() -> bool:
         try:
             collection = chroma_client.get_collection("documentation_collection")
             logger.info("Connected to existing documentation collection")
-        except Exception:
+        except ValueError as e:
+            logger.warning(f"Collection not found, creating new: {e}")
             collection = chroma_client.create_collection(
                 name="documentation_collection",
                 metadata={
@@ -120,6 +121,9 @@ def initialize_chroma() -> bool:
                 },
             )
             logger.info("Created new documentation collection")
+        except (ConnectionError, OSError) as e:
+            logger.error(f"Database connection failed: {e}")
+            raise DatabaseError(f"Cannot connect to ChromaDB: {e}")
 
         logger.info(
             f"✅ Connected to Documentation Chroma database at "
