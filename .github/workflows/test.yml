@@ -21,7 +21,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install pytest pytest-mock
+        pip install pytest pytest-mock coverage[toml] pytest-cov
         pip install -r requirements.txt
     
     - name: Create test directories
@@ -29,14 +29,47 @@ jobs:
         mkdir -p ./chroma_data
         mkdir -p logs
     
-    - name: Run all tests
+    - name: Run tests with coverage
       env:
         PYTHONPATH: src
         MCP_ENVIRONMENT: development
         MCP_SECRET_KEY: test-secret-key-32-characters-long
         MCP_CHROMA_DATA_DIR: ./chroma_data
       run: |
-        python -m pytest tests/test_server.py -v --tb=short
+        python -m pytest tests/test_server_initialization.py tests/test_configuration.py tests/test_tool_registration.py tests/test_cli.py \
+          --cov=src/docs_mcp \
+          --cov-report=xml \
+          --cov-report=html \
+          --cov-report=term-missing \
+          -v --tb=short
+    
+    - name: Generate coverage badge
+      run: |
+        pip install coverage-badge
+        coverage-badge -o coverage.svg -f
+    
+    - name: Upload coverage reports
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: coverage-reports
+        path: |
+          htmlcov/
+          coverage.xml
+          coverage.svg
+    
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      if: always()
+      with:
+        file: ./coverage.xml
+        flags: unittests
+        name: codecov-umbrella
+        fail_ci_if_error: false
+    
+    - name: Check coverage threshold
+      run: |
+        coverage report --fail-under=75 || echo "Coverage below 75% - consider adding more tests"
         
   lint:
     runs-on: ubuntu-latest
