@@ -6,14 +6,21 @@ covering all CSS properties, selectors, concepts, and guides.
 """
 
 import asyncio
+import html
 import logging
-import aiohttp
 import re
 from typing import List, Optional, Dict, Set
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urljoin, urlparse, quote
+
+import aiohttp
 from bs4 import BeautifulSoup, Tag
 
 from ..base import BaseDocumentationSource, DocumentContent, DocumentMetadata
+from ...constants import (
+    DANGEROUS_CHARS, XSS_PATTERNS, MAX_CONTENT_LENGTH, SQL_INJECTION_PATTERNS,
+    CSS_INJECTION_PATTERNS, CSS_KEYLOGGER_PATTERNS, CSS_MAX_REQUESTS_PER_MINUTE,
+    CSS_MAX_TOTAL_REQUESTS, CSS_CONTENT_MAX_LENGTH
+)
 
 logger = logging.getLogger(__name__)
 
@@ -27,9 +34,15 @@ class MDNCSSDocsSource(BaseDocumentationSource):
         
         self.session: Optional[aiohttp.ClientSession] = None
         
-        # Configure for respectful scraping
+        # Configure for respectful scraping with security limits
         self.rate_limit_delay = 1.0  # Be respectful to MDN's servers
         self.batch_size = 25
+        
+        # Security rate limiting
+        self.max_requests_per_minute = CSS_MAX_REQUESTS_PER_MINUTE
+        self.request_times = []
+        self.max_total_requests = CSS_MAX_TOTAL_REQUESTS
+        self.total_requests = 0
         
         # Priority sections for comprehensive CSS coverage
         self.priority_sections = {
@@ -83,6 +96,102 @@ class MDNCSSDocsSource(BaseDocumentationSource):
     
     def get_framework_name(self) -> str:
         return "css"
+    
+    async def _check_rate_limit(self) -> None:
+        """Enforce security rate limiting to prevent DoS"""
+        now = asyncio.get_event_loop().time()
+        
+        # Remove old request times (older than 1 minute)
+        self.request_times = [t for t in self.request_times if now - t < 60]
+        
+        # Check rate limit
+        if len(self.request_times) >= self.max_requests_per_minute:
+            sleep_time = 60 - (now - self.request_times[0])
+            if sleep_time > 0:
+                logger.info(f"Rate limit reached, sleeping for {sleep_time:.1f}s")
+                await asyncio.sleep(sleep_time)
+        
+        # Check total request limit for safety
+        if self.total_requests >= self.max_total_requests:
+            raise Exception(f"Maximum request limit ({self.max_total_requests}) reached for security")
+        
+        self.request_times.append(now)
+        self.total_requests += 1
+    
+    def _validate_url_security(self, url: str) -> bool:
+        """Validate URL against security patterns"""
+        # Check for dangerous characters in URL
+        for char in DANGEROUS_CHARS:
+            if char in url:
+                logger.warning(f"Dangerous character '{char}' found in URL: {url}")
+                return False
+        
+        # Check for SQL injection patterns in URL
+        for pattern in SQL_INJECTION_PATTERNS:
+            if pattern in url.lower():
+                logger.warning(f"SQL injection pattern '{pattern}' found in URL: {url}")
+                return False
+        
+        # Check for CSS injection patterns in URL
+        for pattern in CSS_INJECTION_PATTERNS:
+            if pattern.lower() in url.lower():
+                logger.warning(f"CSS injection pattern '{pattern}' found in URL: {url}")
+                return False
+        
+        return True
+    
+    def _sanitize_css_content(self, css_content: str) -> str:
+        """Sanitize CSS content for security"""
+        if not css_content:
+            return ""
+        
+        # HTML encode first to prevent XSS
+        css_content = html.escape(css_content)
+        
+        # Remove dangerous CSS patterns
+        for pattern in CSS_INJECTION_PATTERNS:
+            # Use regex for more complex patterns
+            if "(" in pattern or "\\" in pattern:
+                css_content = re.sub(
+                    pattern, 
+                    f'[REMOVED_{pattern.replace("(", "").replace(":", "").upper()}]', 
+                    css_content, 
+                    flags=re.IGNORECASE
+                )
+            else:
+                css_content = css_content.replace(pattern, f'[REMOVED_{pattern.upper()}]')
+        
+        # Remove potential keylogger patterns
+        for pattern in CSS_KEYLOGGER_PATTERNS:
+            css_content = re.sub(
+                pattern, 
+                '[SUSPICIOUS_PATTERN_REMOVED]', 
+                css_content, 
+                flags=re.IGNORECASE
+            )
+        
+        # Remove data URIs that could contain scripts
+        css_content = re.sub(
+            r'data:[^;]*;base64,[A-Za-z0-9+/=]+', 
+            '[DATA_URI_REMOVED]', 
+            css_content
+        )
+        
+        # Remove any remaining XSS patterns
+        for pattern in XSS_PATTERNS:
+            css_content = css_content.replace(pattern, f'[XSS_REMOVED]')
+        
+        return css_content
+    
+    def _sanitize_url(self, url: str) -> str:
+        """Sanitize URL for security"""
+        # Remove dangerous characters
+        for char in DANGEROUS_CHARS:
+            if char in ['<', '>', '"', "'", '&']:
+                url = url.replace(char, '')
+        
+        # URL encode but preserve valid URL characters
+        return quote(url, safe=':/?#[]@!$&\'()*+,;=')
     
     async def discover_content(self) -> List[str]:
         """Discover content by crawling the CSS documentation structure"""
@@ -224,36 +333,59 @@ class MDNCSSDocsSource(BaseDocumentationSource):
         return True
     
     async def extract_content(self, url: str) -> Optional[DocumentContent]:
-        """Extract content from a specific CSS documentation page"""
+        """Extract content from a specific CSS documentation page with security validation"""
         try:
+            # Security validation first
+            if not self._validate_url_security(url):
+                logger.error(f"Security validation failed for URL: {url}")
+                return None
+            
+            if not self._is_css_docs_url(url):
+                logger.error(f"URL not valid CSS docs URL: {url}")
+                return None
+            
+            # Rate limiting for security
+            await self._check_rate_limit()
             await asyncio.sleep(self.rate_limit_delay)
             
-            async with self.session.get(url) as response:
+            # Sanitize URL
+            safe_url = self._sanitize_url(url)
+            
+            async with self.session.get(safe_url) as response:
                 if response.status != 200:
-                    logger.warning(f"HTTP {response.status} for {url}")
+                    logger.warning(f"HTTP {response.status} for {safe_url}")
                     return None
                 
                 html = await response.text()
                 soup = BeautifulSoup(html, 'html.parser')
                 
-                # Extract title
-                title = self._extract_title(soup, url)
-                if not title:
+                # Extract title with length validation
+                title = self._extract_title(soup, safe_url)
+                if not title or len(title) > 500:
+                    logger.debug(f"Invalid or too long title for {safe_url}")
                     return None
                 
-                # Extract main content
+                # Extract and sanitize main content
                 content = self._extract_main_content(soup)
                 if not content or len(content.strip()) < 100:
-                    logger.debug(f"Skipping {url} - insufficient content")
+                    logger.debug(f"Skipping {safe_url} - insufficient content")
                     return None
                 
-                # Create metadata
-                metadata = self._create_metadata(url, title, content)
+                # Enforce content length limits
+                if len(content) > CSS_CONTENT_MAX_LENGTH:
+                    logger.warning(f"Content too large ({len(content)} chars) for {safe_url}, truncating")
+                    content = content[:CSS_CONTENT_MAX_LENGTH]
+                
+                # Sanitize content for security
+                content = self._sanitize_css_content(content)
+                
+                # Create metadata with sanitized values
+                metadata = self._create_secure_metadata(safe_url, title, content)
                 
                 return DocumentContent(content=content, metadata=metadata)
                 
         except Exception as e:
-            logger.error(f"Error extracting content from {url}: {e}")
+            logger.error(f"Security error extracting content from {url}: {e}")
             return None
     
     def _extract_title(self, soup: BeautifulSoup, url: str) -> Optional[str]:
@@ -340,7 +472,9 @@ class MDNCSSDocsSource(BaseDocumentationSource):
             elif element.name == 'pre':
                 code_content = element.get_text().strip()
                 if code_content:
-                    content_parts.append(f"\n```css\n{code_content}\n```\n")
+                    # Sanitize CSS code content for security
+                    sanitized_code = self._sanitize_css_content(code_content)
+                    content_parts.append(f"\n```css\n{sanitized_code}\n```\n")
             elif element.name == 'code' and element.parent.name != 'pre':
                 content_parts.append(f"`{element.get_text().strip()}`")
             elif element.name == 'dt':
@@ -375,6 +509,28 @@ class MDNCSSDocsSource(BaseDocumentationSource):
             return "styling"
         
         return "general"
+    
+    def _create_secure_metadata(self, url: str, title: str, content: str) -> DocumentMetadata:
+        """Create metadata with security sanitization"""
+        # Sanitize title
+        safe_title = html.escape(title[:200])  # Limit title length
+        
+        # Create base metadata
+        metadata = self._create_metadata(url, safe_title, content)
+        
+        # Sanitize all string fields
+        if hasattr(metadata, 'source'):
+            metadata.source = html.escape(str(metadata.source)[:500])
+        if hasattr(metadata, 'section'):
+            metadata.section = html.escape(str(metadata.section)[:100])
+        if hasattr(metadata, 'subsection'):
+            metadata.subsection = html.escape(str(metadata.subsection)[:100])
+        
+        # Sanitize tags and limit count
+        if hasattr(metadata, 'tags'):
+            metadata.tags = [html.escape(str(tag)[:50]) for tag in metadata.tags[:20]]
+        
+        return metadata
     
     def _determine_doc_type(self, url: str, title: str, content: str) -> str:
         """Determine document type based on URL, title, and content"""
