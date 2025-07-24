@@ -22,6 +22,8 @@ from pydantic import BaseModel, field_validator, Field
 from chromadb.config import Settings as ChromaSettings
 
 from .config import get_settings, validate_environment, create_log_directory
+from .constants import DANGEROUS_CHARS, DEFAULT_SEARCH_LIMIT, MAX_CONTENT_LENGTH
+from .exceptions import ValidationError
 
 # Initialize settings and validate environment
 settings = get_settings()
@@ -51,23 +53,22 @@ class SearchRequest(BaseModel):
         ..., min_length=1, max_length=settings.max_query_length
     )  # noqa: E501
     category: str = Field(default="general", pattern="^[a-zA-Z_][a-zA-Z0-9_]*$")
-    limit: int = Field(default=3, ge=1, le=10)
+    limit: int = Field(default=DEFAULT_SEARCH_LIMIT, ge=1, le=10)
 
     @field_validator("query")
     @classmethod
-    def sanitize_query(cls, v):
+    def sanitize_query(cls, query: str) -> str:
         """Sanitize search query"""
         # Remove potentially dangerous characters
-        dangerous_chars = ["<", ">", '"', "'", "&", ";", "|", "`", "$"]
-        for char in dangerous_chars:
-            v = v.replace(char, "")
-        return v.strip()
+        for char in DANGEROUS_CHARS:
+            query = query.replace(char, "")
+        return query.strip()
 
 
 class DocumentRequest(BaseModel):
     """Validated document addition request"""
 
-    content: str = Field(..., min_length=10, max_length=50000)
+    content: str = Field(..., min_length=10, max_length=MAX_CONTENT_LENGTH)
     framework: str = Field(..., pattern="^(fastapi|python|swift_ios)$")
     category: str = Field(..., pattern="^[a-zA-Z_][a-zA-Z0-9_]*$")
     source: str = Field(..., min_length=1, max_length=500)

@@ -18,7 +18,7 @@ from pathlib import Path
 import chromadb
 from chromadb.config import Settings as ChromaSettings
 
-from config import get_settings
+from ..config import get_settings
 
 logger = logging.getLogger(__name__)
 settings = get_settings()

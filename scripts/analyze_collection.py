@@ -6,10 +6,17 @@ This script provides detailed statistics about all frameworks, sources,
 and document types currently stored in the documentation collection.
 """
 
+import sys
+from pathlib import Path
+from collections import defaultdict
+
 import chromadb
 from chromadb.config import Settings as ChromaSettings
-from config import get_settings
-from collections import defaultdict
+
+# Add src directory to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+
+from docs_mcp.config import get_settings
 
 settings = get_settings()
 
