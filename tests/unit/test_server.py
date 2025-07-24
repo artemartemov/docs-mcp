@@ -32,8 +32,8 @@ class TestValidationModels:
     def test_search_request_invalid_category(self):
         with pytest.raises(ValueError):
             SearchRequest(
-                query="test", category="invalid-category"  # Hyphens not allowed
-            )
+                query="test", category="invalid-category"
+            )  # Hyphens not allowed
 
     def test_document_request_valid(self):
         request = DocumentRequest(

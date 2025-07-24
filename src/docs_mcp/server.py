@@ -174,7 +174,7 @@ def generate_doc_id(content: str, framework: str) -> str:
 
 def format_results(results, framework_name: str) -> str:
     """Format search results with security considerations"""
-    if not results["documents"][0]:
+    if not results or not results.get("documents") or not results["documents"][0]:
         return f"No {framework_name} documentation found."
 
     formatted_results = [f"# {framework_name} Documentation Results\n"]

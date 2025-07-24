@@ -1,5 +1,12 @@
 # docs-mcp
 
+[![CI](https://github.com/artemartemov/docs-mcp/actions/workflows/test.yml/badge.svg)](https://github.com/artemartemov/docs-mcp/actions/workflows/test.yml)
+[![Tests](https://img.shields.io/badge/tests-24%20passing-green.svg)](https://github.com/artemartemov/docs-mcp/actions)
+[![Coverage](https://img.shields.io/badge/coverage-75%25%2B-brightgreen.svg)](https://github.com/artemartemov/docs-mcp/actions)
+[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+
 A secure Model Context Protocol (MCP) server providing intelligent documentation search across multiple frameworks using ChromaDB vector storage.
 
 ## Features
@@ -134,13 +141,54 @@ Add to your `.mcp.json`:
 
 MIT License - see LICENSE file for details.
 
+## Testing
+
+This project maintains high test coverage with organized test suites:
+
+- **Server Initialization Tests** (4 tests): Verify server startup and imports
+- **Configuration Tests** (7 tests): Validate settings and environment handling  
+- **Tool Registration Tests** (9 tests): Ensure all MCP tools are properly registered
+- **CLI Tests** (4 tests): Test command-line interface functionality
+
+### Running Tests Locally
+
+```bash
+# Run all tests
+make test
+
+# Run specific test categories
+python -m pytest tests/test_server_initialization.py -v
+python -m pytest tests/test_configuration.py -v
+python -m pytest tests/test_tool_registration.py -v
+python -m pytest tests/test_cli.py -v
+
+# Run with coverage
+python -m pytest tests/ --cov=src/docs_mcp --cov-report=html
+```
+
+### Coverage Requirements
+
+- **Minimum Coverage**: 75%
+- **Coverage Reports**: Generated automatically in CI/CD
+- **Coverage Artifacts**: Available in GitHub Actions builds
+- **PR Comments**: Automatic coverage reporting on pull requests
+
 ## Contributing
 
 1. Fork the repository
 2. Create a feature branch
 3. Make your changes
-4. Run tests: `./docs-mcp test --all`
+4. Run tests and ensure coverage: `make test`
 5. Submit a pull request
+
+All pull requests must pass:
+- ✅ Server initialization tests
+- ✅ Configuration validation tests  
+- ✅ Tool registration tests
+- ✅ CLI functionality tests
+- ✅ Code formatting (Black)
+- ✅ Code linting (flake8)
+- ✅ 75%+ test coverage
 
 ## Support
 
