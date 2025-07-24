@@ -12,28 +12,20 @@ class TestValidationModels:
     """Test input validation models"""
 
     def test_search_request_valid(self):
-        request = SearchRequest(
-            query="FastAPI testing patterns", category="testing", limit=5
-        )
+        request = SearchRequest(query="FastAPI testing patterns", category="testing", limit=5)
         assert request.query == "FastAPI testing patterns"
         assert request.category == "testing"
         assert request.limit == 5
 
     def test_search_request_sanitization(self):
-        request = SearchRequest(
-            query="SELECT * FROM users; DROP TABLE users;", category="general"
-        )
+        request = SearchRequest(query="SELECT * FROM users; DROP TABLE users;", category="general")
         # Dangerous characters should be removed
         assert ";" not in request.query
-        assert (
-            "DROP" in request.query
-        )  # Content preserved, only dangerous chars removed
+        assert "DROP" in request.query  # Content preserved, only dangerous chars removed
 
     def test_search_request_invalid_category(self):
         with pytest.raises(ValueError):
-            SearchRequest(
-                query="test", category="invalid-category"  # Hyphens not allowed
-            )
+            SearchRequest(query="test", category="invalid-category")  # Hyphens not allowed
 
     def test_document_request_valid(self):
         request = DocumentRequest(

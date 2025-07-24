@@ -13,9 +13,7 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, SCRIPT_DIR)
 
 # Also add the virtual environment if needed
-VENV_SITE_PACKAGES = os.path.join(
-    SCRIPT_DIR, "venv", "lib", "python3.11", "site-packages"
-)
+VENV_SITE_PACKAGES = os.path.join(SCRIPT_DIR, "venv", "lib", "python3.11", "site-packages")
 if os.path.exists(VENV_SITE_PACKAGES):
     sys.path.insert(0, VENV_SITE_PACKAGES)
 
@@ -171,9 +169,7 @@ FastAPI Best Practices for ResaleAnalyzer Project:
         print("✅ ALL TESTS PASSED! Server is ready for use.")
         print("\n📋 How to use this MCP server:")
         print("1. Add it to your .mcp.json configuration")
-        print(
-            "2. Use search_fastapi_docs(), search_python_docs(), search_swift_ios_docs()"
-        )
+        print("2. Use search_fastapi_docs(), search_python_docs(), search_swift_ios_docs()")
         print("3. Get security guidelines with get_security_guidelines()")
         print("4. Add more documentation with add_project_documentation()")
 
