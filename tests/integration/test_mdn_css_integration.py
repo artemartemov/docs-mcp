@@ -9,11 +9,15 @@ extracted and is accessible through the docs-mcp server.
 import asyncio
 import logging
 import json
+import sys
 from pathlib import Path
 import chromadb
 from chromadb.config import Settings as ChromaSettings
 
-from config import get_settings
+# Add src directory to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
+
+from docs_mcp.config import get_settings
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

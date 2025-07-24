@@ -11,11 +11,11 @@ import logging
 import sys
 from pathlib import Path
 
-# Add current directory to path for imports
-sys.path.insert(0, str(Path(__file__).parent))
+# Add src directory to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from docs_ingestion.base import DocumentationIngester
-from docs_ingestion.adapters.mdn_css_docs import MDNCSSDocsSource
+from docs_mcp.ingestion.base import DocumentationIngester
+from docs_mcp.ingestion.adapters.mdn_css_docs import MDNCSSDocsSource
 
 # Configure logging
 logging.basicConfig(
