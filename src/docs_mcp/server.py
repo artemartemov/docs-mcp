@@ -79,14 +79,14 @@ class DocumentRequest(BaseModel):
 
     @field_validator("content")
     @classmethod
-    def sanitize_content(cls, v):
+    def sanitize_content(cls, content: str) -> str:
         """Basic content sanitization"""
         # Remove null bytes and control characters
-        v = "".join(char for char in v if ord(char) >= 32 or char in "\n\r\t")
-        return v.strip()
+        sanitized = "".join(char for char in content if ord(char) >= 32 or char in "\n\r\t")
+        return sanitized.strip()
 
 
-def initialize_chroma():
+def initialize_chroma() -> bool:
     """Initialize secure connection to Chroma database"""
     global chroma_client, collection
 
