@@ -1,0 +1,34 @@
+coverage:
+  status:
+    project:
+      default:
+        target: 75%
+        threshold: 5%
+        base: auto
+    patch:
+      default:
+        target: 70%
+        threshold: 5%
+
+comment:
+  layout: "reach, diff, flags, files"
+  behavior: default
+  require_changes: false
+  require_base: false
+  require_head: true
+
+ignore:
+  - "tests/"
+  - "*/test_*"
+  - "**/__pycache__/"
+  - "setup.py"
+  - "*/venv/"
+  - "*/env/"
+
+flags:
+  unittests:
+    paths:
+      - src/docs_mcp/
+
+github_checks:
+  annotations: true

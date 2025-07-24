@@ -234,13 +234,82 @@ jobs:
           coverage.svg
     
     - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v4
       if: always()
       with:
         file: ./coverage.xml
         flags: unittests
-        name: codecov-umbrella
+        name: docs-mcp-coverage
         fail_ci_if_error: false
+        token: ${{ secrets.CODECOV_TOKEN }}
+        verbose: true
+        
+    - name: Coverage Summary
+      run: |
+        echo "## 📊 Test Coverage Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Overall Coverage" >> $GITHUB_STEP_SUMMARY
+        coverage report --format=markdown >> $GITHUB_STEP_SUMMARY || echo "Coverage report generation failed" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Coverage by File" >> $GITHUB_STEP_SUMMARY
+        coverage report --show-missing >> $GITHUB_STEP_SUMMARY || echo "Detailed coverage report generation failed" >> $GITHUB_STEP_SUMMARY
+        
+    - name: Create Coverage Comment
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const fs = require('fs');
+          const { execSync } = require('child_process');
+          
+          try {
+            const coverageOutput = execSync('coverage report', { encoding: 'utf8' });
+            const coverageLines = coverageOutput.split('\n');
+            const totalLine = coverageLines.find(line => line.includes('TOTAL'));
+            const coveragePercent = totalLine ? totalLine.match(/(\d+)%/)?.[1] : 'Unknown';
+            
+            const comment = `## 📊 Coverage Report
+            
+**Overall Coverage: ${coveragePercent}%**
+
+\`\`\`
+${coverageOutput}
+\`\`\`
+
+${parseInt(coveragePercent) >= 75 ? '✅ Coverage meets minimum threshold (75%)' : '⚠️ Coverage below minimum threshold (75%)'}
+
+Coverage artifacts are available in the [build artifacts](https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}).
+            `;
+            
+            // Find existing coverage comment
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+            });
+            
+            const existingComment = comments.find(comment => 
+              comment.body.includes('## 📊 Coverage Report')
+            );
+            
+            if (existingComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existingComment.id,
+                body: comment
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.payload.pull_request.number,
+                body: comment
+              });
+            }
+          } catch (error) {
+            console.log('Error generating coverage comment:', error.message);
+          }
     
     - name: Check coverage threshold
       run: |
