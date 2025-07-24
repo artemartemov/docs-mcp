@@ -7,9 +7,10 @@ and selective content extraction based on object inventory.
 
 import asyncio
 import logging
-import aiohttp
 from typing import List, Optional, Dict, Set
 from urllib.parse import urljoin, urlparse
+
+import aiohttp
 import sphobjinv as soi
 from bs4 import BeautifulSoup
 

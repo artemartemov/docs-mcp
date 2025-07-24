@@ -6,12 +6,13 @@ React docs don't use Sphinx, so this demonstrates alternative approaches.
 """
 
 import asyncio
+import json
 import logging
-import aiohttp
 from typing import List, Optional, Set
 from urllib.parse import urljoin, urlparse
+
+import aiohttp
 from bs4 import BeautifulSoup
-import json
 
 from ..base import BaseDocumentationSource, DocumentContent, DocumentMetadata
 

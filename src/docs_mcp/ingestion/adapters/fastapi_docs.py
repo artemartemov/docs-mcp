@@ -6,9 +6,10 @@ Example implementation for adding FastAPI documentation support.
 
 import asyncio
 import logging
-import aiohttp
 from typing import List, Optional
 from urllib.parse import urljoin
+
+import aiohttp
 import sphobjinv as soi
 from bs4 import BeautifulSoup
 
