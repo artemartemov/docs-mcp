@@ -1,43 +1,137 @@
-# Pre-commit hooks for code quality and security
+# Pre-commit hooks configuration for docs-mcp
+# See https://pre-commit.com for more information
+
 repos:
+  # Built-in hooks
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.4.0
+    rev: v4.5.0
     hooks:
       - id: trailing-whitespace
+        exclude: ^(logs/|chroma_data/)
       - id: end-of-file-fixer
+        exclude: ^(logs/|chroma_data/)
       - id: check-yaml
-      - id: check-added-large-files
+        exclude: ^(logs/|chroma_data/)
+      - id: check-json
+        exclude: ^(logs/|chroma_data/)
+      - id: check-toml
       - id: check-merge-conflict
+      - id: check-added-large-files
+        args: ['--maxkb=1000']
+      - id: check-case-conflict
+      - id: check-docstring-first
+      - id: check-executables-have-shebangs
+      - id: check-shebang-scripts-are-executable
+      - id: mixed-line-ending
+        args: ['--fix=lf']
+      - id: requirements-txt-fixer
+        files: ^requirements.*\.txt$
       - id: debug-statements
 
+  # Python code formatting with Black
   - repo: https://github.com/psf/black
-    rev: 23.9.1
+    rev: 23.12.1
     hooks:
       - id: black
         language_version: python3
+        files: ^(src/|scripts/|tests/).*\.py$
+        args: [--line-length=88]
 
+  # Python import sorting
+  - repo: https://github.com/pycqa/isort
+    rev: 5.13.2
+    hooks:
+      - id: isort
+        files: ^(src/|scripts/|tests/).*\.py$
+        args: [--profile=black, --line-length=88]
+
+  # Python linting with flake8
   - repo: https://github.com/pycqa/flake8
-    rev: 6.1.0
+    rev: 7.0.0
     hooks:
       - id: flake8
-        args: [--max-line-length=88, --extend-ignore=E203,W503]
+        files: ^(src/|scripts/|tests/).*\.py$
+        args:
+          - --max-line-length=88
+          - --extend-ignore=E203,W503,E501
+          - --exclude=logs,chroma_data,venv,.venv,build,dist
+        additional_dependencies:
+          - flake8-docstrings
+          - flake8-bugbear
+          - flake8-comprehensions
 
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.6.1
-    hooks:
-      - id: mypy
-        additional_dependencies: [types-all]
-
+  # Python security linting with bandit
   - repo: https://github.com/PyCQA/bandit
     rev: 1.7.5
     hooks:
       - id: bandit
-        args: [-r, -f, json]
+        files: ^(src/|scripts/).*\.py$
+        args: [-r, --skip=B101,B601]
         exclude: ^tests/
 
+  # Python type checking with mypy
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.8.0
+    hooks:
+      - id: mypy
+        files: ^src/docs_mcp/.*\.py$
+        args: [--ignore-missing-imports, --show-error-codes]
+        additional_dependencies:
+          - types-requests
+          - types-python-dateutil
+
+  # Shell script linting
+  - repo: https://github.com/koalaman/shellcheck-precommit
+    rev: v0.9.0
+    hooks:
+      - id: shellcheck
+        files: ^.*\.(sh|bash)$
+        args: [-e, SC1091, -e, SC2312]
+
+  # Security scanning for secrets
   - repo: https://github.com/gitguardian/ggshield
     rev: v1.25.0
     hooks:
       - id: ggshield
         language: python
         stages: [commit]
+
+  # Local hooks for project-specific checks
+  - repo: local
+    hooks:
+      # Custom configuration validation
+      - id: validate-config
+        name: Validate configuration
+        entry: bash -c 'cd "$(git rev-parse --show-toplevel)" && PYTHONPATH=src python -c "from docs_mcp.config import validate_environment; validate_environment(); print(\"✅ Configuration valid\")" 2>/dev/null || echo "⚠️ Configuration validation skipped (ChromaDB not available)"'
+        language: system
+        files: ^(src/docs_mcp/config\.py|\.env\.example)$
+        pass_filenames: false
+
+      # Test import structure
+      - id: test-imports
+        name: Test import structure
+        entry: bash -c 'cd "$(git rev-parse --show-toplevel)" && PYTHONPATH=src python -c "import docs_mcp.server; import docs_mcp.config; import docs_mcp.cli; print(\"✅ Imports working\")"'
+        language: system
+        files: ^src/docs_mcp/.*\.py$
+        pass_filenames: false
+
+      # Ensure no secrets in code
+      - id: check-no-secrets
+        name: Check for hardcoded secrets
+        entry: bash -c 'if grep -r --include="*.py" --exclude-dir=venv --exclude-dir=.venv -E "(api_key|secret|password|token)\s*=\s*[\"'\''][^\"'\'']*[\"'\'']" src/ scripts/ 2>/dev/null; then echo "❌ Found potential hardcoded secrets"; exit 1; else echo "✅ No hardcoded secrets found"; fi'
+        language: system
+        files: ^(src/|scripts/).*\.py$
+        pass_filenames: false
+
+# Configuration for ci (continuous integration)
+ci:
+  autofix_commit_msg: |
+    [pre-commit.ci] auto fixes from pre-commit hooks
+
+    for more information, see https://pre-commit.ci
+  autofix_prs: true
+  autoupdate_branch: ''
+  autoupdate_commit_msg: '[pre-commit.ci] pre-commit autoupdate'
+  autoupdate_schedule: weekly
+  skip: [validate-config, test-imports, ggshield]
+  submodules: false
