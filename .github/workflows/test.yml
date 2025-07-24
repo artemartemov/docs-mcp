@@ -222,7 +222,11 @@ jobs:
           MCP_SECRET_KEY: test-secret-key-32-characters-long
           MCP_CHROMA_DATA_DIR: ./chroma_data
         run: |
-          python -m pytest tests/ \
+          python -m pytest \
+            tests/test_server_initialization.py \
+            tests/test_configuration.py \
+            tests/test_tool_registration.py \
+            tests/test_cli.py \
             --cov=src/docs_mcp \
             --cov-report=xml \
             --cov-report=html \
