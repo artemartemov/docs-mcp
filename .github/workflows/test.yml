@@ -1,4 +1,4 @@
-name: Tests
+name: CI
 
 on:
   push:
@@ -27,3 +27,27 @@ jobs:
       run: |
         cd tests
         python -m pytest test_basic.py -v
+        
+  lint:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install black flake8
+    
+    - name: Check code formatting
+      run: |
+        black --check src/ tests/ || echo "Code needs formatting"
+        
+    - name: Run flake8
+      run: |
+        flake8 src/ tests/ --max-line-length=100 --extend-ignore=E203,E501 || echo "Linting issues found"
