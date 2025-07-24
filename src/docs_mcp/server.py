@@ -21,9 +21,15 @@ from fastmcp import FastMCP
 from pydantic import BaseModel, field_validator, Field
 from chromadb.config import Settings as ChromaSettings
 
-from .config import get_settings, validate_environment, create_log_directory
-from .constants import DANGEROUS_CHARS, DEFAULT_SEARCH_LIMIT, MAX_CONTENT_LENGTH, XSS_PATTERNS
-from .exceptions import ValidationError, DatabaseError
+try:
+    from .config import get_settings, validate_environment, create_log_directory
+    from .constants import DANGEROUS_CHARS, DEFAULT_SEARCH_LIMIT, MAX_CONTENT_LENGTH, XSS_PATTERNS
+    from .exceptions import ValidationError, DatabaseError
+except ImportError:
+    # Handle case when running as standalone script
+    from config import get_settings, validate_environment, create_log_directory
+    from constants import DANGEROUS_CHARS, DEFAULT_SEARCH_LIMIT, MAX_CONTENT_LENGTH, XSS_PATTERNS
+    from exceptions import ValidationError, DatabaseError
 
 # Initialize settings and validate environment
 settings = get_settings()

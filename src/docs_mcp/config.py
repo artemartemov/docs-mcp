@@ -10,8 +10,13 @@ from pydantic import field_validator
 from pydantic_settings import BaseSettings
 from dotenv import load_dotenv
 
-from .constants import MIN_SECRET_KEY_LENGTH, DEFAULT_ENVIRONMENT
-from .exceptions import ConfigurationError
+try:
+    from .constants import MIN_SECRET_KEY_LENGTH, DEFAULT_ENVIRONMENT
+    from .exceptions import ConfigurationError
+except ImportError:
+    # Handle case when running as standalone script
+    from constants import MIN_SECRET_KEY_LENGTH, DEFAULT_ENVIRONMENT
+    from exceptions import ConfigurationError
 
 # Load environment variables from .env file
 load_dotenv()
