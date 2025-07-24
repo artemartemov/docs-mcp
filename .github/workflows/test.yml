@@ -256,60 +256,27 @@ jobs:
         
     - name: Create Coverage Comment
       if: github.event_name == 'pull_request'
-      uses: actions/github-script@v6
-      with:
-        script: |
-          const fs = require('fs');
-          const { execSync } = require('child_process');
-          
-          try {
-            const coverageOutput = execSync('coverage report', { encoding: 'utf8' });
-            const coverageLines = coverageOutput.split('\n');
-            const totalLine = coverageLines.find(line => line.includes('TOTAL'));
-            const coveragePercent = totalLine ? totalLine.match(/(\d+)%/)?.[1] : 'Unknown';
-            
-            const comment = `## 📊 Coverage Report
-            
-**Overall Coverage: ${coveragePercent}%**
-
-\`\`\`
-${coverageOutput}
-\`\`\`
-
-${parseInt(coveragePercent) >= 75 ? '✅ Coverage meets minimum threshold (75%)' : '⚠️ Coverage below minimum threshold (75%)'}
-
-Coverage artifacts are available in the [build artifacts](https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}).
-            `;
-            
-            // Find existing coverage comment
-            const { data: comments } = await github.rest.issues.listComments({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.payload.pull_request.number,
-            });
-            
-            const existingComment = comments.find(comment => 
-              comment.body.includes('## 📊 Coverage Report')
-            );
-            
-            if (existingComment) {
-              await github.rest.issues.updateComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                comment_id: existingComment.id,
-                body: comment
-              });
-            } else {
-              await github.rest.issues.createComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: context.payload.pull_request.number,
-                body: comment
-              });
-            }
-          } catch (error) {
-            console.log('Error generating coverage comment:', error.message);
-          }
+      run: |
+        # Create a simple coverage comment
+        COVERAGE_PERCENT=$(coverage report | grep TOTAL | awk '{print $4}' | sed 's/%//')
+        if [ -n "$COVERAGE_PERCENT" ]; then
+          echo "Coverage: ${COVERAGE_PERCENT}%"
+          echo "## 📊 Coverage Report" > coverage_comment.md
+          echo "" >> coverage_comment.md
+          echo "**Overall Coverage: ${COVERAGE_PERCENT}%**" >> coverage_comment.md
+          echo "" >> coverage_comment.md
+          echo '```' >> coverage_comment.md
+          coverage report >> coverage_comment.md
+          echo '```' >> coverage_comment.md
+          echo "" >> coverage_comment.md
+          if [ "$COVERAGE_PERCENT" -ge 75 ]; then
+            echo "✅ Coverage meets minimum threshold (75%)" >> coverage_comment.md
+          else
+            echo "⚠️ Coverage below minimum threshold (75%)" >> coverage_comment.md
+          fi
+          echo "" >> coverage_comment.md
+          echo "Coverage artifacts are available in the build artifacts." >> coverage_comment.md
+        fi
     
     - name: Check coverage threshold
       run: |
