@@ -43,21 +43,21 @@ test: ## Run tests
 	pytest -v --cov=. --cov-report=html
 
 lint: ## Run linting checks
-	flake8 server.py config.py
-	mypy server.py config.py
+	flake8 src/docs_mcp/
+	mypy src/docs_mcp/
 
 format: ## Format code with black
-	black server.py config.py
+	black src/docs_mcp/ scripts/ tests/
 
 security: ## Run security checks
-	bandit -r server.py config.py
+	bandit -r src/docs_mcp/
 	safety check
 
 run: ## Run the MCP server
-	$(PYTHON) server.py
+	PYTHONPATH=src $(PYTHON) -m docs_mcp.server
 
 run-production: ## Run with production settings
-	ENVIRONMENT=production uvicorn server:mcp --host 127.0.0.1 --port 8000
+	ENVIRONMENT=production PYTHONPATH=src uvicorn docs_mcp.server:mcp --host 127.0.0.1 --port 8000
 
 setup-env: ## Setup environment file from example
 	@if [ ! -f .env ]; then \
@@ -68,7 +68,7 @@ setup-env: ## Setup environment file from example
 	fi
 
 validate-config: ## Validate configuration
-	$(PYTHON) -c "from config import validate_environment; validate_environment(); print('✅ Configuration valid')"
+	PYTHONPATH=src $(PYTHON) -c "from docs_mcp.config import validate_environment; validate_environment(); print('✅ Configuration valid')"
 
 clean: ## Clean up generated files
 	rm -rf __pycache__/
