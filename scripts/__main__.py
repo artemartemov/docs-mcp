@@ -8,6 +8,7 @@ import sys
 import subprocess
 from pathlib import Path
 
+
 def main():
     """Main entry point for scripts module"""
     if len(sys.argv) < 2:
@@ -18,16 +19,16 @@ def main():
             if script.name != "__main__.py":
                 print(f"  {script.stem}")
         return 1
-    
+
     script_name = sys.argv[1]
     if not script_name.endswith(".py"):
         script_name += ".py"
-    
+
     script_path = Path(__file__).parent / script_name
     if not script_path.exists():
         print(f"Script not found: {script_name}")
         return 1
-    
+
     # Run the script with remaining arguments
     cmd = [sys.executable, str(script_path)] + sys.argv[2:]
     try:
@@ -38,6 +39,7 @@ def main():
     except Exception as e:
         print(f"Error running script: {e}")
         return 1
+
 
 if __name__ == "__main__":
     sys.exit(main())

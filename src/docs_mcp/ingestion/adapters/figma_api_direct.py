@@ -18,243 +18,310 @@ from ..base import BaseDocumentationSource, DocumentContent, DocumentMetadata
 
 logger = logging.getLogger(__name__)
 
+
 class FigmaAPIDirectSource(BaseDocumentationSource):
     """Figma API documentation source using direct API calls and OpenAPI specs"""
-    
+
     def __init__(self, version: str = "latest"):
         self.version = version
         base_url = "https://www.figma.com/developers/api/"
         super().__init__(f"Figma API {version} Direct", base_url)
-        
+
         # Configure for respectful API access
         self.rate_limit_delay = 1.5
         self.batch_size = 15
-        
+
         # Figma API endpoints and resources
         self.api_resources = {
             # Core API documentation
             "introduction": {
                 "url": "https://www.figma.com/developers/api/",
                 "title": "Figma API Introduction",
-                "description": "Overview of the Figma REST API for accessing design files and data"
+                "description": "Overview of the Figma REST API for accessing design files and data",
             },
             "authentication": {
                 "url": "https://www.figma.com/developers/api/#authentication",
                 "title": "API Authentication",
-                "description": "How to authenticate with personal access tokens and OAuth2"
+                "description": "How to authenticate with personal access tokens and OAuth2",
             },
             "rate-limiting": {
-                "url": "https://www.figma.com/developers/api/#rate-limiting", 
+                "url": "https://www.figma.com/developers/api/#rate-limiting",
                 "title": "Rate Limiting",
-                "description": "API rate limits and best practices for avoiding throttling"
+                "description": "API rate limits and best practices for avoiding throttling",
             },
             "errors": {
                 "url": "https://www.figma.com/developers/api/#errors",
                 "title": "Error Handling",
-                "description": "HTTP status codes and error response formats"
+                "description": "HTTP status codes and error response formats",
             },
-            
             # Files API
             "files": {
                 "url": "https://www.figma.com/developers/api/#get-files",
                 "title": "Files API",
-                "description": "GET /v1/files/:key - Retrieve file information and document structure"
+                "description": "GET /v1/files/:key - Retrieve file information and document structure",
             },
             "file-nodes": {
                 "url": "https://www.figma.com/developers/api/#get-file-nodes",
-                "title": "File Nodes API", 
-                "description": "GET /v1/files/:key/nodes - Get specific nodes from a file"
+                "title": "File Nodes API",
+                "description": "GET /v1/files/:key/nodes - Get specific nodes from a file",
             },
             "file-images": {
                 "url": "https://www.figma.com/developers/api/#get-images",
                 "title": "File Images API",
-                "description": "GET /v1/images/:key - Export images from file nodes"
+                "description": "GET /v1/images/:key - Export images from file nodes",
             },
-            
             # Comments API
             "comments": {
                 "url": "https://www.figma.com/developers/api/#get-comments",
                 "title": "Comments API",
-                "description": "GET /v1/files/:key/comments - Retrieve comments on a file"
+                "description": "GET /v1/files/:key/comments - Retrieve comments on a file",
             },
             "post-comments": {
                 "url": "https://www.figma.com/developers/api/#post-comments",
                 "title": "Post Comments",
-                "description": "POST /v1/files/:key/comments - Add comments to a file"
+                "description": "POST /v1/files/:key/comments - Add comments to a file",
             },
-            
             # Team/User APIs
             "me": {
                 "url": "https://www.figma.com/developers/api/#get-me",
                 "title": "User Information",
-                "description": "GET /v1/me - Get current user information"
+                "description": "GET /v1/me - Get current user information",
             },
             "team-projects": {
                 "url": "https://www.figma.com/developers/api/#get-team-projects",
                 "title": "Team Projects",
-                "description": "GET /v1/teams/:team_id/projects - List projects in a team"
+                "description": "GET /v1/teams/:team_id/projects - List projects in a team",
             },
             "project-files": {
                 "url": "https://www.figma.com/developers/api/#get-project-files",
                 "title": "Project Files",
-                "description": "GET /v1/projects/:project_id/files - List files in a project"
+                "description": "GET /v1/projects/:project_id/files - List files in a project",
             },
-            
             # Components & Styles
             "team-components": {
                 "url": "https://www.figma.com/developers/api/#get-team-components",
                 "title": "Team Components",
-                "description": "GET /v1/teams/:team_id/components - Get published components"
+                "description": "GET /v1/teams/:team_id/components - Get published components",
             },
             "component-metadata": {
                 "url": "https://www.figma.com/developers/api/#get-component",
                 "title": "Component Metadata",
-                "description": "GET /v1/components/:key - Get component metadata"
+                "description": "GET /v1/components/:key - Get component metadata",
             },
             "team-styles": {
                 "url": "https://www.figma.com/developers/api/#get-team-styles",
                 "title": "Team Styles",
-                "description": "GET /v1/teams/:team_id/styles - Get published styles"
+                "description": "GET /v1/teams/:team_id/styles - Get published styles",
             },
             "style-metadata": {
                 "url": "https://www.figma.com/developers/api/#get-style",
-                "title": "Style Metadata", 
-                "description": "GET /v1/styles/:key - Get style metadata"
+                "title": "Style Metadata",
+                "description": "GET /v1/styles/:key - Get style metadata",
             },
-            
             # Variables (Design Tokens)
             "local-variables": {
                 "url": "https://www.figma.com/developers/api/#get-local-variables",
                 "title": "Local Variables",
-                "description": "GET /v1/files/:key/variables/local - Get local variables from a file"
+                "description": "GET /v1/files/:key/variables/local - Get local variables from a file",
             },
             "published-variables": {
                 "url": "https://www.figma.com/developers/api/#get-published-variables",
                 "title": "Published Variables",
-                "description": "GET /v1/files/:key/variables/published - Get published variables"
+                "description": "GET /v1/files/:key/variables/published - Get published variables",
             },
-            
             # Webhooks
             "webhooks": {
                 "url": "https://www.figma.com/developers/api/#webhooks_v2",
                 "title": "Webhooks v2",
-                "description": "Real-time notifications for file and comment events"
+                "description": "Real-time notifications for file and comment events",
             },
             "webhook-events": {
                 "url": "https://www.figma.com/developers/api/#webhook-events",
                 "title": "Webhook Events",
-                "description": "Types of events that can trigger webhook notifications"
-            }
+                "description": "Types of events that can trigger webhook notifications",
+            },
         }
-        
+
         # OpenAPI/Swagger-like endpoint definitions for detailed docs
         self.endpoint_specs = {
             "GET /v1/files/:key": {
                 "summary": "Get file information",
                 "description": "Returns the document referenced by :key as a JSON object. The file key can be parsed from any Figma file url.",
                 "parameters": [
-                    {"name": "key", "type": "string", "required": True, "description": "File to export"},
-                    {"name": "version", "type": "string", "required": False, "description": "A specific version ID to get"},
-                    {"name": "ids", "type": "string", "required": False, "description": "A comma separated list of node IDs to retrieve"},
-                    {"name": "depth", "type": "integer", "required": False, "description": "Positive integer representing how deep into the document tree to traverse"},
-                    {"name": "geometry", "type": "string", "required": False, "description": "Set to 'paths' to export vector data"},
-                    {"name": "plugin_data", "type": "string", "required": False, "description": "A comma separated list of plugin IDs and/or the string 'shared'"},
-                    {"name": "branch_data", "type": "boolean", "required": False, "description": "Returns branch metadata for the requested file"}
+                    {
+                        "name": "key",
+                        "type": "string",
+                        "required": True,
+                        "description": "File to export",
+                    },
+                    {
+                        "name": "version",
+                        "type": "string",
+                        "required": False,
+                        "description": "A specific version ID to get",
+                    },
+                    {
+                        "name": "ids",
+                        "type": "string",
+                        "required": False,
+                        "description": "A comma separated list of node IDs to retrieve",
+                    },
+                    {
+                        "name": "depth",
+                        "type": "integer",
+                        "required": False,
+                        "description": "Positive integer representing how deep into the document tree to traverse",
+                    },
+                    {
+                        "name": "geometry",
+                        "type": "string",
+                        "required": False,
+                        "description": "Set to 'paths' to export vector data",
+                    },
+                    {
+                        "name": "plugin_data",
+                        "type": "string",
+                        "required": False,
+                        "description": "A comma separated list of plugin IDs and/or the string 'shared'",
+                    },
+                    {
+                        "name": "branch_data",
+                        "type": "boolean",
+                        "required": False,
+                        "description": "Returns branch metadata for the requested file",
+                    },
                 ],
                 "responses": {
                     "200": "File data successfully retrieved",
                     "403": "Access denied",
-                    "404": "File not found"
-                }
+                    "404": "File not found",
+                },
             },
             "GET /v1/images/:key": {
                 "summary": "Get image exports",
                 "description": "Renders images from a file.",
                 "parameters": [
-                    {"name": "key", "type": "string", "required": True, "description": "File to export images from"},
-                    {"name": "ids", "type": "string", "required": True, "description": "A comma separated list of node IDs to render"},
-                    {"name": "scale", "type": "number", "required": False, "description": "A number between 0.01 and 4, the image scaling factor"},
-                    {"name": "format", "type": "string", "required": False, "description": "Image output format: jpg, png, svg, pdf"},
-                    {"name": "svg_include_id", "type": "boolean", "required": False, "description": "Whether to include id attributes for all SVG elements"},
-                    {"name": "svg_simplify_stroke", "type": "boolean", "required": False, "description": "Whether to simplify inside/outside strokes"}
+                    {
+                        "name": "key",
+                        "type": "string",
+                        "required": True,
+                        "description": "File to export images from",
+                    },
+                    {
+                        "name": "ids",
+                        "type": "string",
+                        "required": True,
+                        "description": "A comma separated list of node IDs to render",
+                    },
+                    {
+                        "name": "scale",
+                        "type": "number",
+                        "required": False,
+                        "description": "A number between 0.01 and 4, the image scaling factor",
+                    },
+                    {
+                        "name": "format",
+                        "type": "string",
+                        "required": False,
+                        "description": "Image output format: jpg, png, svg, pdf",
+                    },
+                    {
+                        "name": "svg_include_id",
+                        "type": "boolean",
+                        "required": False,
+                        "description": "Whether to include id attributes for all SVG elements",
+                    },
+                    {
+                        "name": "svg_simplify_stroke",
+                        "type": "boolean",
+                        "required": False,
+                        "description": "Whether to simplify inside/outside strokes",
+                    },
                 ],
                 "responses": {
                     "200": "Image URLs successfully generated",
                     "400": "Invalid parameters",
-                    "403": "Access denied"
-                }
+                    "403": "Access denied",
+                },
             },
             "GET /v1/files/:key/comments": {
                 "summary": "Get comments",
                 "description": "A list of comments left on the file.",
                 "parameters": [
-                    {"name": "key", "type": "string", "required": True, "description": "File to get comments from"}
+                    {
+                        "name": "key",
+                        "type": "string",
+                        "required": True,
+                        "description": "File to get comments from",
+                    }
                 ],
                 "responses": {
                     "200": "Comments successfully retrieved",
                     "403": "Access denied",
-                    "404": "File not found"
-                }
-            }
+                    "404": "File not found",
+                },
+            },
         }
-    
+
     async def __aenter__(self):
         """Initialize HTTP session"""
         connector = aiohttp.TCPConnector(limit_per_host=3)
         timeout = aiohttp.ClientTimeout(total=30)
-        
+
         self.session = aiohttp.ClientSession(
             connector=connector,
             timeout=timeout,
             headers={
-                'User-Agent': 'Documentation-Ingester/1.0 (Educational Research)',
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-                'Accept-Language': 'en-US,en;q=0.9',
-            }
+                "User-Agent": "Documentation-Ingester/1.0 (Educational Research)",
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                "Accept-Language": "en-US,en;q=0.9",
+            },
         )
         return self
-    
+
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Close HTTP session"""
         if self.session:
             await self.session.close()
-    
+
     def get_framework_name(self) -> str:
         return "figma"
-    
+
     async def discover_content(self) -> List[str]:
         """Discover Figma API documentation URLs using structured approach"""
         logger.info(f"🔍 Discovering Figma API documentation using direct approach...")
-        
+
         discovered_urls = []
-        
+
         # Method 1: Use our structured API resources
         for resource_id, resource_info in self.api_resources.items():
             discovered_urls.append(f"api-resource:{resource_id}")
-        
+
         # Method 2: Generate endpoint documentation from specs
         for endpoint, spec in self.endpoint_specs.items():
             discovered_urls.append(f"api-endpoint:{endpoint}")
-        
+
         # Method 3: Add general documentation topics
         general_topics = [
             "getting-started",
-            "best-practices", 
+            "best-practices",
             "use-cases",
             "libraries-and-tools",
-            "community-resources"
+            "community-resources",
         ]
-        
+
         for topic in general_topics:
             discovered_urls.append(f"general-topic:{topic}")
-        
-        logger.info(f"📋 Generated {len(discovered_urls)} Figma API documentation items")
+
+        logger.info(
+            f"📋 Generated {len(discovered_urls)} Figma API documentation items"
+        )
         logger.info(f"   API Resources: {len(self.api_resources)}")
         logger.info(f"   API Endpoints: {len(self.endpoint_specs)}")
         logger.info(f"   General Topics: {len(general_topics)}")
-        
+
         return discovered_urls
-    
+
     async def extract_content(self, identifier: str) -> Optional[DocumentContent]:
         """Extract content based on identifier type"""
         try:
@@ -267,29 +334,31 @@ class FigmaAPIDirectSource(BaseDocumentationSource):
             else:
                 logger.warning(f"Unknown identifier type: {identifier}")
                 return None
-                
+
         except Exception as e:
             logger.error(f"Error extracting content for {identifier}: {e}")
             return None
-    
-    async def _extract_api_resource(self, resource_id: str) -> Optional[DocumentContent]:
+
+    async def _extract_api_resource(
+        self, resource_id: str
+    ) -> Optional[DocumentContent]:
         """Extract content for an API resource"""
         if resource_id not in self.api_resources:
             return None
-        
+
         resource = self.api_resources[resource_id]
-        
+
         # Try to fetch actual content from URL if possible
         content_parts = []
-        
+
         # Add structured information
         content_parts.append(f"# {resource['title']}\n")
         content_parts.append(f"{resource['description']}\n\n")
-        
+
         # Try to fetch additional content from the URL
         try:
             await asyncio.sleep(self.rate_limit_delay)
-            
+
             # For Figma, we'll create comprehensive synthetic content
             if resource_id == "authentication":
                 content_parts.append(self._generate_auth_docs())
@@ -300,62 +369,66 @@ class FigmaAPIDirectSource(BaseDocumentationSource):
             elif resource_id == "rate-limiting":
                 content_parts.append(self._generate_rate_limiting_docs())
             else:
-                content_parts.append(self._generate_generic_api_docs(resource_id, resource))
-                
+                content_parts.append(
+                    self._generate_generic_api_docs(resource_id, resource)
+                )
+
         except Exception as e:
             logger.debug(f"Could not fetch additional content for {resource_id}: {e}")
-        
+
         content_text = "\n".join(content_parts)
-        
+
         # Create metadata
         metadata = DocumentMetadata(
             framework="figma",
             source="Figma API Official Documentation",
             doc_type="api_reference",
-            title=resource['title'],
-            url=resource['url'],
+            title=resource["title"],
+            url=resource["url"],
             section=self._determine_section(resource_id),
             subsection=resource_id,
             version=self.version,
             language="en",
-            tags=self._generate_resource_tags(resource_id)
+            tags=self._generate_resource_tags(resource_id),
         )
-        
+
         return DocumentContent(content=content_text, metadata=metadata)
-    
+
     async def _extract_endpoint_spec(self, endpoint: str) -> Optional[DocumentContent]:
         """Extract content for an API endpoint specification"""
         if endpoint not in self.endpoint_specs:
             return None
-        
+
         spec = self.endpoint_specs[endpoint]
-        
+
         content_parts = []
         content_parts.append(f"# {endpoint}\n")
         content_parts.append(f"## {spec['summary']}\n")
         content_parts.append(f"{spec['description']}\n\n")
-        
+
         # Parameters section
-        if 'parameters' in spec and spec['parameters']:
+        if "parameters" in spec and spec["parameters"]:
             content_parts.append("## Parameters\n")
-            for param in spec['parameters']:
-                required = "**Required**" if param.get('required') else "Optional"
-                content_parts.append(f"- **{param['name']}** ({param['type']}) - {required}\n")
+            for param in spec["parameters"]:
+                required = "**Required**" if param.get("required") else "Optional"
+                content_parts.append(
+                    f"- **{param['name']}** ({param['type']}) - {required}\n"
+                )
                 content_parts.append(f"  {param['description']}\n")
             content_parts.append("\n")
-        
+
         # Responses section
-        if 'responses' in spec:
+        if "responses" in spec:
             content_parts.append("## Responses\n")
-            for status, description in spec['responses'].items():
+            for status, description in spec["responses"].items():
                 content_parts.append(f"- **{status}**: {description}\n")
             content_parts.append("\n")
-        
+
         # Add example usage
         content_parts.append(self._generate_endpoint_examples(endpoint))
-        
+
         content_text = "\n".join(content_parts)
-        
+
         # Create metadata
         metadata = DocumentMetadata(
             framework="figma",
@@ -364,14 +437,14 @@ class FigmaAPIDirectSource(BaseDocumentationSource):
             title=f"{endpoint} - {spec['summary']}",
             url=f"https://www.figma.com/developers/api/#endpoint-{endpoint.replace('/', '-').replace(':', '')}",
             section="api_endpoints",
-            subsection=endpoint.replace('/', '_').replace(':', ''),
+            subsection=endpoint.replace("/", "_").replace(":", ""),
             version=self.version,
             language="en",
-            tags=["api", "endpoint", "rest"] + self._extract_endpoint_tags(endpoint)
+            tags=["api", "endpoint", "rest"] + self._extract_endpoint_tags(endpoint),
         )
-        
+
         return DocumentContent(content=content_text, metadata=metadata)
-    
+
     async def _extract_general_topic(self, topic: str) -> Optional[DocumentContent]:
         """Extract content for general documentation topics"""
         content_generators = {
@@ -379,14 +452,14 @@ class FigmaAPIDirectSource(BaseDocumentationSource):
             "best-practices": self._generate_best_practices_docs,
             "use-cases": self._generate_use_cases_docs,
             "libraries-and-tools": self._generate_libraries_docs,
-            "community-resources": self._generate_community_docs
+            "community-resources": self._generate_community_docs,
         }
-        
+
         if topic not in content_generators:
             return None
-        
+
         content_text = content_generators[topic]()
-        
+
         metadata = DocumentMetadata(
             framework="figma",
             source="Figma API Documentation Guide",
@@ -397,11 +470,11 @@ class FigmaAPIDirectSource(BaseDocumentationSource):
             subsection=topic,
             version=self.version,
             language="en",
-            tags=["guide", "documentation"] + self._generate_topic_tags(topic)
+            tags=["guide", "documentation"] + self._generate_topic_tags(topic),
         )
-        
+
         return DocumentContent(content=content_text, metadata=metadata)
-    
+
     def _generate_auth_docs(self) -> str:
         """Generate comprehensive authentication documentation"""
         return """
@@ -447,7 +520,7 @@ The Figma API implements rate limiting to ensure fair usage:
 - **Headers**: Check `X-RateLimit-Limit` and `X-RateLimit-Remaining` headers
 - **429 Response**: When rate limit is exceeded, wait before retrying
 """
-    
+
     def _generate_files_api_docs(self) -> str:
         """Generate comprehensive Files API documentation"""
         return """
@@ -500,7 +573,7 @@ The API returns comprehensive JSON data including:
 - Cache responses appropriately based on file version
 - Use `geometry=paths` only when vector data is needed
 """
-    
+
     def _generate_webhooks_docs(self) -> str:
         """Generate webhooks documentation"""
         return """
@@ -563,7 +636,7 @@ curl -X POST "https://api.figma.com/v2/webhooks" \
 - Log webhook events for debugging
 - Monitor webhook health and update endpoints as needed
 """
-    
+
     def _generate_rate_limiting_docs(self) -> str:
         """Generate rate limiting documentation"""
         return """
@@ -618,7 +691,7 @@ if (response.status === 429) {
 - Use webhooks instead of polling for real-time updates
 - Consider user experience when rate limits affect functionality
 """
-    
+
     def _generate_getting_started_docs(self) -> str:
         """Generate getting started documentation"""
         return """
@@ -686,7 +759,7 @@ curl -H "X-Figma-Token: YOUR_TOKEN" \
 - Check out community libraries and tools
 - Join the Figma developers community for support
 """
-    
+
     def _generate_best_practices_docs(self) -> str:
         """Generate best practices documentation"""
         return """
@@ -773,7 +846,7 @@ async function robustApiCall(url, options) {
 - **Monitor performance metrics** in production
 - **Set up alerting** for API failures or rate limit issues
 """
-    
+
     def _generate_use_cases_docs(self) -> str:
         """Generate use cases documentation"""
         return """
@@ -859,7 +932,7 @@ Gain insights into design usage and performance:
 - **Monitor component usage** and identify patterns
 - **Generate data-driven insights** for design decisions
 """
-    
+
     def _generate_libraries_docs(self) -> str:
         """Generate libraries and tools documentation"""
         return """
@@ -962,7 +1035,7 @@ Gain insights into design usage and performance:
 - **Developer Documentation**: Comprehensive guides and references
 - **Community Forum**: Developer discussions and support
 """
-    
+
     def _generate_community_docs(self) -> str:
         """Generate community resources documentation"""
         return """
@@ -1064,8 +1137,10 @@ Gain insights into design usage and performance:
 - **API Ecosystem**: Contributing to the broader ecosystem
 - **Thought Leadership**: Sharing expertise and innovations
 """
-    
-    def _generate_generic_api_docs(self, resource_id: str, resource: Dict[str, Any]) -> str:
+
+    def _generate_generic_api_docs(
+        self, resource_id: str, resource: Dict[str, Any]
+    ) -> str:
         """Generate generic API documentation for resources"""
         return f"""
 ## Overview
@@ -1088,7 +1163,7 @@ This endpoint provides access to {resource_id.replace('-', ' ')} functionality i
 ## Related Endpoints
 See other API endpoints for complementary functionality and complete workflow implementation.
 """
-    
+
     def _determine_section(self, resource_id: str) -> str:
         """Determine the section for a resource"""
         if resource_id in ["authentication", "rate-limiting", "errors"]:
@@ -1099,7 +1174,12 @@ See other API endpoints for complementary functionality and complete workflow im
             return "comments_api"
         elif resource_id in ["me", "team-projects", "project-files"]:
             return "teams_users"
-        elif resource_id in ["team-components", "component-metadata", "team-styles", "style-metadata"]:
+        elif resource_id in [
+            "team-components",
+            "component-metadata",
+            "team-styles",
+            "style-metadata",
+        ]:
             return "components_styles"
         elif resource_id in ["local-variables", "published-variables"]:
             return "variables"
@@ -1107,11 +1187,11 @@ See other API endpoints for complementary functionality and complete workflow im
             return "webhooks"
         else:
             return "general"
-    
+
     def _generate_resource_tags(self, resource_id: str) -> List[str]:
         """Generate tags for a resource"""
         base_tags = ["api", "rest", "figma"]
-        
+
         if resource_id in ["authentication"]:
             base_tags.extend(["auth", "security", "tokens"])
         elif resource_id in ["files", "file-nodes", "file-images"]:
@@ -1124,13 +1204,13 @@ See other API endpoints for complementary functionality and complete workflow im
             base_tags.extend(["components", "design-system"])
         elif resource_id in ["local-variables", "published-variables"]:
             base_tags.extend(["variables", "design-tokens"])
-        
+
         return base_tags
-    
+
     def _extract_endpoint_tags(self, endpoint: str) -> List[str]:
         """Extract tags from endpoint path"""
         tags = []
-        
+
         if "/files/" in endpoint:
             tags.append("files")
         if "/comments" in endpoint:
@@ -1143,9 +1223,9 @@ See other API endpoints for complementary functionality and complete workflow im
             tags.append("components")
         if "/variables" in endpoint:
             tags.append("variables")
-        
+
         return tags
-    
+
     def _generate_topic_tags(self, topic: str) -> List[str]:
         """Generate tags for general topics"""
         tag_map = {
@@ -1153,11 +1233,11 @@ See other API endpoints for complementary functionality and complete workflow im
             "best-practices": ["advanced", "optimization", "security"],
             "use-cases": ["examples", "patterns", "workflows"],
             "libraries-and-tools": ["tools", "sdk", "integration"],
-            "community-resources": ["community", "support", "learning"]
+            "community-resources": ["community", "support", "learning"],
         }
-        
+
         return tag_map.get(topic, [])
-    
+
     def _generate_endpoint_examples(self, endpoint: str) -> str:
         """Generate usage examples for endpoints"""
         examples = {
@@ -1211,33 +1291,46 @@ response = requests.get(
 )
 image_urls = response.json()['images']
 ```
-"""
+""",
         }
-        
-        return examples.get(endpoint, """
+
+        return examples.get(
+            endpoint,
+            """
 ## Example Usage
 
 Refer to the official Figma API documentation for detailed usage examples and code samples.
-""")
+""",
+        )
 
     async def preprocess_content(self, content: str) -> str:
         """Clean and optimize content"""
         # Remove excessive whitespace
-        lines = [line.strip() for line in content.split('\n') if line.strip()]
-        return '\n'.join(lines)
+        lines = [line.strip() for line in content.split("\n") if line.strip()]
+        return "\n".join(lines)
 
-    async def postprocess_metadata(self, metadata: DocumentMetadata) -> DocumentMetadata:
+    async def postprocess_metadata(
+        self, metadata: DocumentMetadata
+    ) -> DocumentMetadata:
         """Enhance metadata with additional tags"""
         # Add comprehensive tags
-        if not any(tag in metadata.tags for tag in ["beginner", "intermediate", "advanced"]):
-            if any(word in metadata.title.lower() for word in ["getting started", "introduction", "basics"]):
+        if not any(
+            tag in metadata.tags for tag in ["beginner", "intermediate", "advanced"]
+        ):
+            if any(
+                word in metadata.title.lower()
+                for word in ["getting started", "introduction", "basics"]
+            ):
                 metadata.tags.append("beginner")
-            elif any(word in metadata.title.lower() for word in ["advanced", "optimization", "security"]):
+            elif any(
+                word in metadata.title.lower()
+                for word in ["advanced", "optimization", "security"]
+            ):
                 metadata.tags.append("advanced")
             else:
                 metadata.tags.append("intermediate")
-        
+
         # Add format tags
         metadata.tags.extend(["rest_api", "json", "http"])
-        
+
         return metadata

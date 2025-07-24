@@ -2,38 +2,67 @@
 
 # Security - Input sanitization
 DANGEROUS_CHARS = [
-    "<", ">", '"', "'", "&", ";", "|", "`", "$",
-    "{", "}", "[", "]", "(", ")", "\\", 
-    "script", "eval", "exec", "__import__", "open"
+    "<",
+    ">",
+    '"',
+    "'",
+    "&",
+    ";",
+    "|",
+    "`",
+    "$",
+    "{",
+    "}",
+    "[",
+    "]",
+    "(",
+    ")",
+    "\\",
+    "script",
+    "eval",
+    "exec",
+    "__import__",
+    "open",
 ]
 
 # SQL injection prevention patterns
-SQL_INJECTION_PATTERNS = ["'", '"', ";", "--", "/*", "*/", "xp_", "sp_", "union", "select"]
+SQL_INJECTION_PATTERNS = [
+    "'",
+    '"',
+    ";",
+    "--",
+    "/*",
+    "*/",
+    "xp_",
+    "sp_",
+    "union",
+    "select",
+]
 
-# XSS prevention patterns  
+# XSS prevention patterns
 XSS_PATTERNS = ["<script", "</script", "javascript:", "onload=", "onerror=", "onclick="]
 
 # CSS-specific injection patterns
 CSS_INJECTION_PATTERNS = [
-    "expression(",      # IE CSS expressions can execute JavaScript
-    "javascript:",      # JavaScript protocol in CSS
-    "@import",          # External imports can load malicious content
-    "behavior:",        # IE behavior property can execute code
-    "-moz-binding",     # Firefox XBL can execute code
-    "filter:",          # IE filters can contain script
-    "\\\\u",            # Unicode escapes
-    "\\0",              # Null bytes
-    "data:text/html",   # Data URIs with HTML
-    "vbscript:",        # VBScript protocol
-    "expression\\s*\\(", # Spaced CSS expressions
+    "expression(",  # IE CSS expressions can execute JavaScript
+    "javascript:",  # JavaScript protocol in CSS
+    "@import",  # External imports can load malicious content
+    "behavior:",  # IE behavior property can execute code
+    "-moz-binding",  # Firefox XBL can execute code
+    "filter:",  # IE filters can contain script
+    "\\\\u",  # Unicode escapes
+    "\\0",  # Null bytes
+    "data:text/html",  # Data URIs with HTML
+    "vbscript:",  # VBScript protocol
+    "expression\\s*\\(",  # Spaced CSS expressions
 ]
 
 # CSS keylogger attack patterns
 CSS_KEYLOGGER_PATTERNS = [
     r'input\[type="password"\]\[value\$=".+"\]',  # Password sniffing
-    r'input\[value\^=".+"\]',                        # Input value tracking
-    r'\[value.*\$=".*"\]',                          # Attribute value tracking
-    r'background.*url\(["\']?https?:',               # External resource loading for tracking
+    r'input\[value\^=".+"\]',  # Input value tracking
+    r'\[value.*\$=".*"\]',  # Attribute value tracking
+    r'background.*url\(["\']?https?:',  # External resource loading for tracking
 ]
 
 MIN_SECRET_KEY_LENGTH = 32
@@ -55,14 +84,25 @@ CSS_CONTENT_MAX_LENGTH = 20000  # Stricter limit for CSS content
 
 # Supported frameworks
 SUPPORTED_FRAMEWORKS = {
-    "python", "fastapi", "react", "swiftui", 
-    "tailwind", "figma", "figma_plugin", "css"
+    "python",
+    "fastapi",
+    "react",
+    "swiftui",
+    "tailwind",
+    "figma",
+    "figma_plugin",
+    "css",
 }
 
 # Document types
 VALID_DOC_TYPES = {
-    "documentation", "project_pattern", "best_practice",
-    "reference", "tutorial", "guide", "api_reference"
+    "documentation",
+    "project_pattern",
+    "best_practice",
+    "reference",
+    "tutorial",
+    "guide",
+    "api_reference",
 }
 
 # Logging configuration

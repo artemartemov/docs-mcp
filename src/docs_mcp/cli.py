@@ -23,20 +23,21 @@ except ImportError:
     from constants import SUPPORTED_FRAMEWORKS
     from server import main as server_main
 
+
 def run_script(script_name: str, framework: Optional[str] = None) -> int:
     """Run a script from the scripts directory."""
     scripts_dir = Path(__file__).parent.parent.parent / "scripts"
     script_path = scripts_dir / script_name
-    
+
     if not script_path.exists():
         print(f"❌ Script not found: {script_path}")
         return 1
-    
+
     try:
         cmd = [sys.executable, str(script_path)]
         if framework:
             cmd.extend(["--framework", framework])
-        
+
         result = subprocess.run(cmd, check=True)
         return result.returncode
     except subprocess.CalledProcessError as e:
@@ -46,10 +47,11 @@ def run_script(script_name: str, framework: Optional[str] = None) -> int:
         print(f"❌ Error running script: {e}")
         return 1
 
+
 def run_test(test_name: Optional[str] = None, test_type: str = "all") -> int:
     """Run tests."""
     tests_dir = Path(__file__).parent.parent.parent / "tests"
-    
+
     if test_name:
         if test_type == "integration":
             test_path = tests_dir / "integration" / f"test_{test_name}_integration.py"
@@ -57,9 +59,11 @@ def run_test(test_name: Optional[str] = None, test_type: str = "all") -> int:
             test_path = tests_dir / "unit" / f"test_{test_name}.py"
         else:
             # Try to find the test file
-            integration_path = tests_dir / "integration" / f"test_{test_name}_integration.py"
+            integration_path = (
+                tests_dir / "integration" / f"test_{test_name}_integration.py"
+            )
             unit_path = tests_dir / "unit" / f"test_{test_name}.py"
-            
+
             if integration_path.exists():
                 test_path = integration_path
             elif unit_path.exists():
@@ -67,16 +71,16 @@ def run_test(test_name: Optional[str] = None, test_type: str = "all") -> int:
             else:
                 print(f"❌ Test not found: {test_name}")
                 return 1
-        
+
         if not test_path.exists():
             print(f"❌ Test file not found: {test_path}")
             return 1
-        
+
         cmd = [sys.executable, str(test_path)]
     else:
         # Run all tests
         cmd = [sys.executable, "-m", "pytest", str(tests_dir), "-v"]
-    
+
     try:
         result = subprocess.run(cmd, check=True)
         return result.returncode
@@ -86,41 +90,45 @@ def run_test(test_name: Optional[str] = None, test_type: str = "all") -> int:
         print(f"❌ Error running tests: {e}")
         return 1
 
+
 def extract_command(args) -> int:
     """Handle extract command."""
     if args.framework == "all":
         frameworks = list(SUPPORTED_FRAMEWORKS)
         print("🚀 Extracting documentation for all frameworks...")
-        
+
         for framework in frameworks:
             print(f"\n📚 Extracting {framework} documentation...")
             script_map = {
                 "figma": "extract_figma_json.py",
-                "figma_plugin": "extract_figma_plugin.py", 
-                "css": "extract_mdn_css.py"
+                "figma_plugin": "extract_figma_plugin.py",
+                "css": "extract_mdn_css.py",
             }
-            
+
             script = script_map.get(framework, "ingest_documentation.py")
-            result = run_script(script, framework if framework not in script_map else None)
-            
+            result = run_script(
+                script, framework if framework not in script_map else None
+            )
+
             if result != 0:
                 print(f"❌ Failed to extract {framework} documentation")
                 return result
-        
+
         print("\n🎉 All documentation extracted successfully!")
         return 0
-    
+
     else:
         script_map = {
             "figma": "extract_figma_json.py",
             "figma_plugin": "extract_figma_plugin.py",
-            "css": "extract_mdn_css.py"
+            "css": "extract_mdn_css.py",
         }
-        
+
         script = script_map.get(args.framework, "ingest_documentation.py")
         framework_arg = None if args.framework in script_map else args.framework
-        
+
         return run_script(script, framework_arg)
+
 
 def analyze_command(args) -> int:
     """Handle analyze command."""
@@ -130,6 +138,7 @@ def analyze_command(args) -> int:
         print("📊 Available analysis options:")
         print("  --stats    Show collection statistics")
         return 0
+
 
 def test_command(args) -> int:
     """Handle test command."""
@@ -142,6 +151,7 @@ def test_command(args) -> int:
         print("  --framework FRAMEWORK    Test specific framework integration")
         print("  --all                   Run all tests")
         return 0
+
 
 def server_command(args) -> int:
     """Handle server command."""
@@ -163,14 +173,14 @@ def server_command(args) -> int:
         print(f"  Environment: {settings.environment}")
         print(f"  Host: {settings.host}")
         print(f"  Port: {settings.port}")
-        
+
         # Validate configuration
         try:
             validate_environment()
             print("✅ Configuration is valid")
         except Exception as e:
             print(f"⚠️  Configuration warning: {e}")
-        
+
         return 0
     else:
         print("🖥️  Available server options:")
@@ -178,26 +188,30 @@ def server_command(args) -> int:
         print("  --config    Show current configuration")
         return 0
 
+
 def dev_command(args) -> int:
     """Handle development command."""
     if args.setup:
         print("🔧 Setting up development environment...")
         try:
             # Install dependencies
-            subprocess.run([sys.executable, "-m", "pip", "install", "-r", "requirements-dev.txt"], check=True)
-            
+            subprocess.run(
+                [sys.executable, "-m", "pip", "install", "-r", "requirements-dev.txt"],
+                check=True,
+            )
+
             # Create necessary directories
             data_dir = Path("data")
             data_dir.mkdir(exist_ok=True)
             (data_dir / "logs").mkdir(exist_ok=True)
             (data_dir / "chroma_data").mkdir(exist_ok=True)
-            
+
             print("✅ Development environment setup complete!")
             return 0
         except subprocess.CalledProcessError as e:
             print(f"❌ Setup failed: {e}")
             return 1
-    
+
     elif args.clean:
         print("🧹 Cleaning temporary files...")
         # Clean up temporary files, logs, etc.
@@ -205,20 +219,22 @@ def dev_command(args) -> int:
         for pattern in temp_patterns:
             try:
                 import glob
+
                 for file in glob.glob(pattern, recursive=True):
                     Path(file).unlink()
                     print(f"  Removed: {file}")
             except Exception:
                 pass
-        
+
         print("✅ Cleanup complete!")
         return 0
-    
+
     else:
         print("🛠️  Available development options:")
         print("  --setup     Setup development environment")
         print("  --clean     Clean temporary files")
         return 0
+
 
 def main():
     """Main CLI entry point."""
@@ -233,61 +249,74 @@ Examples:
   docs-mcp test --framework figma         Test Figma integration
   docs-mcp server --start                 Start MCP server
   docs-mcp dev --setup                    Setup development environment
-        """
+        """,
     )
-    
+
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
-    
+
     # Extract command
     extract_parser = subparsers.add_parser("extract", help="Extract documentation")
     framework_choices = list(SUPPORTED_FRAMEWORKS) + ["all"]
     extract_parser.add_argument(
-        "--framework", 
+        "--framework",
         choices=framework_choices,
         required=True,
-        help="Framework to extract documentation for"
+        help="Framework to extract documentation for",
     )
-    
-    # Analyze command  
-    analyze_parser = subparsers.add_parser("analyze", help="Analyze documentation collection")
-    analyze_parser.add_argument("--stats", action="store_true", help="Show collection statistics")
-    
+
+    # Analyze command
+    analyze_parser = subparsers.add_parser(
+        "analyze", help="Analyze documentation collection"
+    )
+    analyze_parser.add_argument(
+        "--stats", action="store_true", help="Show collection statistics"
+    )
+
     # Test command
     test_parser = subparsers.add_parser("test", help="Run tests")
     test_parser.add_argument("--framework", help="Test specific framework integration")
     test_parser.add_argument("--all", action="store_true", help="Run all tests")
-    
+
     # Server command
     server_parser = subparsers.add_parser("server", help="Server operations")
-    server_parser.add_argument("--start", action="store_true", help="Start the MCP server")
-    server_parser.add_argument("--config", action="store_true", help="Show configuration")
-    
+    server_parser.add_argument(
+        "--start", action="store_true", help="Start the MCP server"
+    )
+    server_parser.add_argument(
+        "--config", action="store_true", help="Show configuration"
+    )
+
     # Dev command
     dev_parser = subparsers.add_parser("dev", help="Development utilities")
-    dev_parser.add_argument("--setup", action="store_true", help="Setup development environment")
-    dev_parser.add_argument("--clean", action="store_true", help="Clean temporary files")
-    
+    dev_parser.add_argument(
+        "--setup", action="store_true", help="Setup development environment"
+    )
+    dev_parser.add_argument(
+        "--clean", action="store_true", help="Clean temporary files"
+    )
+
     args = parser.parse_args()
-    
+
     if not args.command:
         parser.print_help()
         return 0
-    
+
     # Route to appropriate command handler
     command_handlers = {
         "extract": extract_command,
-        "analyze": analyze_command, 
+        "analyze": analyze_command,
         "test": test_command,
         "server": server_command,
-        "dev": dev_command
+        "dev": dev_command,
     }
-    
+
     handler = command_handlers.get(args.command)
     if handler:
         return handler(args)
     else:
         print(f"❌ Unknown command: {args.command}")
         return 1
+
 
 if __name__ == "__main__":
     sys.exit(main())

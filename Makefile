@@ -40,7 +40,7 @@ install-dev: install ## Install development dependencies
 	$(PIP) install -r requirements-dev.txt
 
 test: ## Run tests
-	pytest -v --cov=. --cov-report=html
+	pytest -v
 
 lint: ## Run linting checks
 	flake8 src/docs_mcp/

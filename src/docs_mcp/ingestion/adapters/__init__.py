@@ -15,15 +15,15 @@ from .figma_plugin_docs import FigmaPluginDocsSource
 from .mdn_css_docs import MDNCSSDocsSource
 
 __all__ = [
-    "PythonDocsSource", 
-    "FastAPIDocsSource", 
+    "PythonDocsSource",
+    "FastAPIDocsSource",
     "ReactDocsSource",
     "SwiftUIDocsSource",
-    "TailwindDocsSource", 
+    "TailwindDocsSource",
     "FigmaDocsSource",
     "FigmaScreenshotDocsSource",
     "FigmaFileDocsSource",
     "FigmaJsonDocsSource",
     "FigmaPluginDocsSource",
-    "MDNCSSDocsSource"
+    "MDNCSSDocsSource",
 ]

@@ -29,7 +29,7 @@ class Settings(BaseSettings):
     environment: str = DEFAULT_ENVIRONMENT
     secret_key: str = secrets.token_urlsafe(32)  # Generate secure default
 
-    # Chroma Database Configuration  
+    # Chroma Database Configuration
     chroma_data_dir: str = "./chroma_data"
     openai_api_key: Optional[str] = None
 
@@ -144,7 +144,9 @@ def validate_environment():
 
     # Check secret key strength
     if len(settings.secret_key) < MIN_SECRET_KEY_LENGTH:
-        errors.append(f"Secret key must be at least {MIN_SECRET_KEY_LENGTH} characters long")
+        errors.append(
+            f"Secret key must be at least {MIN_SECRET_KEY_LENGTH} characters long"
+        )
 
     if errors:
         raise ConfigurationError(

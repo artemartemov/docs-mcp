@@ -23,12 +23,22 @@ from chromadb.config import Settings as ChromaSettings
 
 try:
     from .config import get_settings, validate_environment, create_log_directory
-    from .constants import DANGEROUS_CHARS, DEFAULT_SEARCH_LIMIT, MAX_CONTENT_LENGTH, XSS_PATTERNS
+    from .constants import (
+        DANGEROUS_CHARS,
+        DEFAULT_SEARCH_LIMIT,
+        MAX_CONTENT_LENGTH,
+        XSS_PATTERNS,
+    )
     from .exceptions import ValidationError, DatabaseError
 except ImportError:
     # Handle case when running as standalone script
     from config import get_settings, validate_environment, create_log_directory
-    from constants import DANGEROUS_CHARS, DEFAULT_SEARCH_LIMIT, MAX_CONTENT_LENGTH, XSS_PATTERNS
+    from constants import (
+        DANGEROUS_CHARS,
+        DEFAULT_SEARCH_LIMIT,
+        MAX_CONTENT_LENGTH,
+        XSS_PATTERNS,
+    )
     from exceptions import ValidationError, DatabaseError
 
 # Initialize settings and validate environment
@@ -69,13 +79,15 @@ class SearchRequest(BaseModel):
         sanitized = query
         for char in DANGEROUS_CHARS:
             sanitized = sanitized.replace(char, "")
-        
+
         # Additional XSS prevention
         query_lower = sanitized.lower()
         for pattern in XSS_PATTERNS:
             if pattern in query_lower:
-                raise ValidationError(f"Potentially malicious content detected: {pattern}")
-        
+                raise ValidationError(
+                    f"Potentially malicious content detected: {pattern}"
+                )
+
         return sanitized.strip()
 
 
@@ -96,7 +108,9 @@ class DocumentRequest(BaseModel):
     def sanitize_content(cls, content: str) -> str:
         """Basic content sanitization"""
         # Remove null bytes and control characters
-        sanitized = "".join(char for char in content if ord(char) >= 32 or char in "\n\r\t")
+        sanitized = "".join(
+            char for char in content if ord(char) >= 32 or char in "\n\r\t"
+        )
         return sanitized.strip()
 
 
@@ -193,38 +207,40 @@ def format_results(results, framework_name: str) -> str:
 
 
 @mcp.tool()
-def search_accessibility_patterns(query: str, framework: str = "all", wcag_level: str = "all", limit: int = 3) -> str:
+def search_accessibility_patterns(
+    query: str, framework: str = "all", wcag_level: str = "all", limit: int = 3
+) -> str:
     """
     Search accessibility patterns and WCAG compliance guidelines.
-    
+
     Args:
         query: Search query for accessibility patterns
-        framework: Filter by framework (fastapi, swift_ios, react, vue, all)  
+        framework: Filter by framework (fastapi, swift_ios, react, vue, all)
         wcag_level: Filter by WCAG level (A, AA, AAA, all)
         limit: Maximum number of results to return (1-10)
-    
+
     Returns:
         Formatted accessibility patterns and compliance guidelines
     """
     if not collection:
         return "❌ Database not available"
-    
+
     # Input sanitization
     query = str(query).strip()[:200]  # Limit query length
     framework = str(framework).lower().strip()[:20]
     wcag_level = str(wcag_level).upper().strip()[:5]
     limit = max(1, min(10, int(limit)))
-    
+
     if not query:
         return "❌ Query cannot be empty"
-    
+
     try:
         # Build metadata filters
         where_filter = {"framework": "accessibility"}
-        
+
         if framework != "all" and framework in ["fastapi", "swift_ios", "react", "vue"]:
             where_filter["target_framework"] = framework
-            
+
         if wcag_level != "all" and wcag_level in ["A", "AA", "AAA"]:
             where_filter["wcag_level"] = wcag_level
 
@@ -232,58 +248,59 @@ def search_accessibility_patterns(query: str, framework: str = "all", wcag_level
             query_texts=[query],
             n_results=limit,
             where=where_filter,
-            include=["documents", "metadatas", "distances"]
+            include=["documents", "metadatas", "distances"],
         )
-        
-        return format_search_results(results, f"accessibility patterns for '{query}'")
-        
+
+        return format_results(results, f"accessibility patterns for '{query}'")
+
     except Exception as e:
         logger.error(f"Accessibility search error: {e}")
         return f"❌ Search failed: {str(e)[:100]}"
 
+
 @mcp.tool()
 def add_accessibility_pattern(
-    pattern_content: str, 
+    pattern_content: str,
     target_framework: str,
     wcag_level: str = "AA",
     category: str = "general",
-    source: str = "manual_entry"
+    source: str = "manual_entry",
 ) -> str:
     """
     Add a new accessibility pattern to the knowledge base.
-    
+
     Args:
         pattern_content: The accessibility pattern content
         target_framework: Target framework (fastapi, swift_ios, react, vue)
         wcag_level: WCAG compliance level (A, AA, AAA)
         category: Pattern category (forms, navigation, images, etc.)
         source: Source of the pattern
-    
+
     Returns:
         Success or error message
     """
     if not collection:
         return "❌ Database not available"
-    
+
     # Input validation and sanitization
     pattern_content = str(pattern_content).strip()
     target_framework = str(target_framework).lower().strip()
     wcag_level = str(wcag_level).upper().strip()
     category = str(category).lower().strip()
     source = str(source).strip()[:100]
-    
+
     if len(pattern_content) < 10:
         return "❌ Pattern content too short (minimum 10 characters)"
-    
+
     if target_framework not in ["fastapi", "swift_ios", "react", "vue"]:
         return "❌ Invalid target framework. Use: fastapi, swift_ios, react, vue"
-        
+
     if wcag_level not in ["A", "AA", "AAA"]:
         return "❌ Invalid WCAG level. Use: A, AA, AAA"
-    
+
     try:
         doc_id = generate_doc_id(pattern_content, f"accessibility_{target_framework}")
-        
+
         metadata = {
             "framework": "accessibility",
             "target_framework": target_framework,
@@ -293,44 +310,43 @@ def add_accessibility_pattern(
             "type": "accessibility_pattern",
             "project": "general",
             "added_at": datetime.utcnow().isoformat(),
-            "content_hash": hashlib.md5(pattern_content.encode()).hexdigest()
+            "content_hash": hashlib.md5(pattern_content.encode()).hexdigest(),
         }
-        
-        collection.add(
-            documents=[pattern_content],
-            metadatas=[metadata],
-            ids=[doc_id]
-        )
-        
+
+        collection.add(documents=[pattern_content], metadatas=[metadata], ids=[doc_id])
+
         logger.info(f"Added accessibility pattern: {doc_id}")
-        return f"✅ Added accessibility pattern for {target_framework} (WCAG {wcag_level})"
-        
+        return (
+            f"✅ Added accessibility pattern for {target_framework} (WCAG {wcag_level})"
+        )
+
     except Exception as e:
         logger.error(f"Failed to add accessibility pattern: {e}")
         return f"❌ Failed to add pattern: {str(e)[:100]}"
+
 
 @mcp.tool()
 def scan_and_cache_accessibility_issues(url: str, cache_results: bool = True) -> str:
     """
     Scan a URL for accessibility issues and optionally cache common patterns found.
-    
+
     Args:
         url: URL to scan for accessibility issues
         cache_results: Whether to cache discovered patterns for future reference
-    
+
     Returns:
         Accessibility scan results and caching status
     """
     if not collection:
         return "❌ Database not available"
-    
+
     # Input sanitization
     url = str(url).strip()
-    
+
     # Basic URL validation
-    if not url.startswith(('http://', 'https://')):
+    if not url.startswith(("http://", "https://")):
         return "❌ Invalid URL. Must start with http:// or https://"
-    
+
     try:
         # Note: This is a placeholder for actual accessibility scanning
         # In practice, you would integrate with the accessibility scanner MCP server
@@ -359,36 +375,33 @@ use this tool to cache common patterns for quick local access.
 
 This reduces API calls and token usage while building a knowledge base.
 """
-        
+
         if cache_results:
             # Cache this scan info as an example
             doc_id = generate_doc_id(scan_info, "accessibility_scan")
-            
+
             metadata = {
                 "framework": "accessibility",
                 "target_framework": "web",
-                "wcag_level": "AA", 
+                "wcag_level": "AA",
                 "category": "scan_results",
                 "source": f"scan_{url}",
                 "type": "scan_integration",
                 "project": "general",
                 "added_at": datetime.utcnow().isoformat(),
-                "scanned_url": url
+                "scanned_url": url,
             }
-            
-            collection.add(
-                documents=[scan_info],
-                metadatas=[metadata], 
-                ids=[doc_id]
-            )
-            
+
+            collection.add(documents=[scan_info], metadatas=[metadata], ids=[doc_id])
+
             return f"✅ Scan integration info cached. Use accessibility-scanner MCP for detailed scans.\n\n{scan_info}"
-        
+
         return scan_info
-        
+
     except Exception as e:
         logger.error(f"Accessibility scan integration error: {e}")
         return f"❌ Scan integration failed: {str(e)[:100]}"
+
 
 @mcp.tool()
 def search_fastapi_docs(query: str, category: str = "general", limit: int = 3) -> str:
@@ -453,7 +466,7 @@ def search_python_docs(query: str, category: str = "general", limit: int = 3) ->
 
         # Enhanced search with intelligent prioritization
         search_text = f"Python {request.category} {request.query}"
-        
+
         # First try to find official documentation
         official_results = collection.query(
             query_texts=[search_text],
@@ -461,12 +474,12 @@ def search_python_docs(query: str, category: str = "general", limit: int = 3) ->
             where={
                 "$and": [
                     {"framework": "python"},
-                    {"source": "Python Official Documentation"}
+                    {"source": "Python Official Documentation"},
                 ]
             },
             include=["documents", "metadatas", "distances"],
         )
-        
+
         # If we have enough official results, use them, otherwise supplement
         if len(official_results["documents"][0]) >= request.limit:
             results = official_results
@@ -478,30 +491,38 @@ def search_python_docs(query: str, category: str = "general", limit: int = 3) ->
                 where={"framework": "python"},
                 include=["documents", "metadatas", "distances"],
             )
-            
+
             # Combine and deduplicate results
-            combined_docs = official_results["documents"][0] + supplement_results["documents"][0]
-            combined_metadata = official_results["metadatas"][0] + supplement_results["metadatas"][0]
-            combined_distances = official_results["distances"][0] + supplement_results["distances"][0]
-            
+            combined_docs = (
+                official_results["documents"][0] + supplement_results["documents"][0]
+            )
+            combined_metadata = (
+                official_results["metadatas"][0] + supplement_results["metadatas"][0]
+            )
+            combined_distances = (
+                official_results["distances"][0] + supplement_results["distances"][0]
+            )
+
             # Remove duplicates and limit results
             seen_urls = set()
             final_docs = []
             final_metadata = []
             final_distances = []
-            
-            for doc, meta, dist in zip(combined_docs, combined_metadata, combined_distances):
+
+            for doc, meta, dist in zip(
+                combined_docs, combined_metadata, combined_distances
+            ):
                 url = meta.get("url", "")
                 if url not in seen_urls and len(final_docs) < request.limit:
                     seen_urls.add(url)
                     final_docs.append(doc)
                     final_metadata.append(meta)
                     final_distances.append(dist)
-            
+
             results = {
                 "documents": [final_docs],
                 "metadatas": [final_metadata],
-                "distances": [final_distances]
+                "distances": [final_distances],
             }
 
         logger.info(
@@ -806,39 +827,36 @@ def add_project_documentation(
 def ingest_documentation_source(source: str = "python", test_mode: bool = False) -> str:
     """
     Ingest documentation from a specific source into the knowledge base.
-    
+
     Args:
         source: Documentation source ("python", etc.)
         test_mode: Run in test mode with limited content for safety
-    
+
     Returns:
         Status message with ingestion results
     """
     try:
         import subprocess
         import sys
-        
+
         # Build command
         cmd = [sys.executable, "ingest_documentation.py", "--source", source]
         if test_mode:
             cmd.append("--test")
-        
+
         logger.info(f"Starting documentation ingestion: {' '.join(cmd)}")
-        
+
         # Run ingestion process
         result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            timeout=1800  # 30 minute timeout
+            cmd, capture_output=True, text=True, timeout=1800  # 30 minute timeout
         )
-        
+
         if result.returncode == 0:
             # Parse the output for summary information
-            output_lines = result.stdout.split('\n')
+            output_lines = result.stdout.split("\n")
             summary_started = False
             summary_lines = []
-            
+
             for line in output_lines:
                 if "INGESTION SUMMARY" in line:
                     summary_started = True
@@ -846,9 +864,9 @@ def ingest_documentation_source(source: str = "python", test_mode: bool = False)
                     summary_lines.append(line)
                 elif summary_started and not line.strip():
                     break
-            
-            summary = '\n'.join(summary_lines[-10:])  # Last 10 lines of summary
-            
+
+            summary = "\n".join(summary_lines[-10:])  # Last 10 lines of summary
+
             return f"""✅ Documentation ingestion completed successfully!
 
 Source: {source}
@@ -863,24 +881,27 @@ Full logs available in: logs/documentation_ingestion.log
             error_output = result.stderr[-500:] if result.stderr else "Unknown error"
             logger.error(f"Documentation ingestion failed: {error_output}")
             return f"❌ Documentation ingestion failed:\n{error_output}"
-            
+
     except subprocess.TimeoutExpired:
         return "❌ Documentation ingestion timed out (30 minutes)"
     except Exception as e:
         logger.error(f"Documentation ingestion error: {e}")
         return f"❌ Documentation ingestion error: {e}"
 
+
 @mcp.tool()
 def list_documentation_sources() -> str:
     """List all available documentation sources for ingestion."""
     try:
         from ingest_documentation import IngestionConfig
-        
+
         sources_info = []
         for source_name in IngestionConfig.list_available_sources():
             config = IngestionConfig.get_source_info(source_name)
-            sources_info.append(f"• **{source_name}**: {config.get('description', 'No description')}")
-        
+            sources_info.append(
+                f"• **{source_name}**: {config.get('description', 'No description')}"
+            )
+
         return f"""📚 Available Documentation Sources:
 
 {chr(10).join(sources_info)}
@@ -891,6 +912,7 @@ Example: `ingest_documentation_source("python", test_mode=True)`
     except Exception as e:
         logger.error(f"Error listing sources: {e}")
         return f"❌ Error listing sources: {e}"
+
 
 @mcp.tool()
 def get_collection_stats() -> str:

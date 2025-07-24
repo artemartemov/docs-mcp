@@ -10,13 +10,13 @@ from .base import (
     DocumentContent,
     IngestionStats,
     BaseDocumentationSource,
-    DocumentationIngester
+    DocumentationIngester,
 )
 
 __all__ = [
     "DocumentMetadata",
-    "DocumentContent", 
+    "DocumentContent",
     "IngestionStats",
     "BaseDocumentationSource",
-    "DocumentationIngester"
+    "DocumentationIngester",
 ]

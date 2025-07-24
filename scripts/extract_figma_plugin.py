@@ -20,30 +20,31 @@ from docs_ingestion.adapters.figma_plugin_docs import FigmaPluginDocsSource
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     handlers=[
         logging.StreamHandler(),
-        logging.FileHandler('logs/figma_plugin_extraction.log', mode='w')
-    ]
+        logging.FileHandler("logs/figma_plugin_extraction.log", mode="w"),
+    ],
 )
 
 logger = logging.getLogger(__name__)
 
+
 async def main():
     """Run comprehensive Figma Plugin API documentation extraction"""
-    
+
     logger.info("🚀 Starting comprehensive Figma Plugin API documentation extraction")
     logger.info("📄 Source: https://www.figma.com/plugin-docs/")
-    
+
     try:
         # Initialize the documentation ingester
         ingester = DocumentationIngester(collection_name="documentation_collection")
-        
+
         # Create the Figma Plugin source with async context manager
         async with FigmaPluginDocsSource(version="latest") as figma_plugin_source:
             # Run the complete extraction
             stats = await ingester.ingest_from_source(figma_plugin_source)
-        
+
         # Log comprehensive results
         logger.info("📊 COMPREHENSIVE EXTRACTION RESULTS:")
         logger.info(f"   🔍 Total pages discovered: {stats.total_discovered}")
@@ -52,32 +53,36 @@ async def main():
         logger.info(f"   ⏭️  Skipped (existing): {stats.skipped_existing}")
         logger.info(f"   📈 Success rate: {stats.success_rate:.1f}%")
         logger.info(f"   ⏱️  Total time: {stats.elapsed_time:.1f}s")
-        
+
         # Get collection statistics
         collection_stats = ingester.get_collection_stats()
         logger.info("📚 CHROMADB COLLECTION STATS:")
         logger.info(f"   Total documents: {collection_stats.get('total_documents', 0)}")
         logger.info(f"   Framework breakdown: {collection_stats.get('frameworks', {})}")
-        
+
         # Count Figma Plugin specific documents
-        figma_plugin_count = collection_stats.get('frameworks', {}).get('figma_plugin', 0)
+        figma_plugin_count = collection_stats.get("frameworks", {}).get(
+            "figma_plugin", 0
+        )
         logger.info(f"   📱 Figma Plugin docs: {figma_plugin_count}")
-        
+
         # Check for any failures
         if stats.failed_ingestions > 0:
             logger.warning(f"⚠️  {stats.failed_ingestions} pages failed to extract")
             for url, error in stats.failed_details.items():
                 logger.warning(f"   Failed: {url} - {error}")
-        
+
         # Success summary
         if stats.success_rate >= 90:
             logger.info("🎉 EXTRACTION COMPLETED SUCCESSFULLY!")
-            logger.info("✅ Figma Plugin API documentation is now available in ChromaDB")
-            
+            logger.info(
+                "✅ Figma Plugin API documentation is now available in ChromaDB"
+            )
+
             # Test the extracted content
             logger.info("🧪 Testing extracted content...")
             await test_extracted_content(ingester)
-            
+
             return True
         elif stats.success_rate >= 70:
             logger.warning("⚠️  Extraction completed with some issues")
@@ -85,12 +90,14 @@ async def main():
         else:
             logger.error("❌ Extraction failed - low success rate")
             return False
-            
+
     except Exception as e:
         logger.error(f"❌ Fatal error during extraction: {e}")
         import traceback
+
         logger.error(traceback.format_exc())
         return False
+
 
 async def test_extracted_content(ingester):
     """Test the extracted content by searching for key plugin development terms"""
@@ -103,38 +110,41 @@ async def test_extracted_content(ingester):
                 "Plugin API reference",
                 "Widget development guide",
                 "Publishing plugins to store",
-                "Figma plugin authentication"
+                "Figma plugin authentication",
             ]
-            
+
             for query in test_queries:
                 test_results = collection.query(
                     query_texts=[query],
                     where={"framework": "figma_plugin"},
-                    n_results=3
+                    n_results=3,
                 )
-                
-                if test_results.get('documents') and test_results['documents'][0]:
-                    logger.info(f"✅ Search test '{query}' - found {len(test_results['documents'][0])} relevant documents")
-                    
+
+                if test_results.get("documents") and test_results["documents"][0]:
+                    logger.info(
+                        f"✅ Search test '{query}' - found {len(test_results['documents'][0])} relevant documents"
+                    )
+
                     # Show a sample
-                    for i, doc in enumerate(test_results['documents'][0][:2]):
-                        sample = doc[:150].replace('\n', ' ')
+                    for i, doc in enumerate(test_results["documents"][0][:2]):
+                        sample = doc[:150].replace("\n", " ")
                         logger.info(f"   Sample {i+1}: {sample}...")
                 else:
                     logger.warning(f"⚠️  Search test '{query}' returned no results")
-                
+
                 await asyncio.sleep(0.1)  # Brief pause between tests
-        
+
     except Exception as e:
         logger.warning(f"⚠️  Could not test extracted content: {e}")
+
 
 if __name__ == "__main__":
     # Ensure logs directory exists
     Path("logs").mkdir(exist_ok=True)
-    
+
     # Run the extraction
     success = asyncio.run(main())
-    
+
     if success:
         print("\n🎉 Figma Plugin API documentation extraction completed successfully!")
         print("📚 Content is now available through the docs-mcp server")
