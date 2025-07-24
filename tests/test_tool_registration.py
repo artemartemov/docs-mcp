@@ -148,29 +148,40 @@ class TestToolRegistration(unittest.TestCase):
         self.assertEqual(mcp.name, "DocumentationServer")
 
     def test_search_query_model_exists(self):
-        """Test that SearchQuery model is properly defined."""
-        from docs_mcp.server import SearchQuery
+        """Test that SearchRequest model is properly defined."""
+        from docs_mcp.server import SearchRequest
 
-        # Test that SearchQuery can be instantiated
-        query = SearchQuery(query="test search")
+        # Test that SearchRequest can be instantiated
+        query = SearchRequest(query="test search")
         self.assertEqual(query.query, "test search")
-        self.assertEqual(query.max_results, 10)  # default value
+        self.assertEqual(query.limit, 3)  # default value
+        self.assertEqual(query.category, "general")  # default value
 
-        # Test with custom max_results
-        query_custom = SearchQuery(query="test search", max_results=5)
-        self.assertEqual(query_custom.max_results, 5)
+        # Test with custom limit
+        query_custom = SearchRequest(query="test search", limit=5, category="python")
+        self.assertEqual(query_custom.limit, 5)
+        self.assertEqual(query_custom.category, "python")
 
     def test_documentation_request_model_exists(self):
-        """Test that DocumentationRequest model is properly defined."""
-        from docs_mcp.server import DocumentationRequest
+        """Test that DocumentRequest model is properly defined."""
+        from docs_mcp.server import DocumentRequest
 
-        # Test that DocumentationRequest can be instantiated
-        doc_request = DocumentationRequest(
-            content="Test documentation", doc_type="test", source="test.md"
+        # Test that DocumentRequest can be instantiated with required fields
+        doc_request = DocumentRequest(
+            content="Test documentation content that is long enough to pass validation",
+            framework="python",
+            category="test_category",
+            source="test.md",
+            doc_type="documentation",
         )
-        self.assertEqual(doc_request.content, "Test documentation")
-        self.assertEqual(doc_request.doc_type, "test")
+        self.assertEqual(
+            doc_request.content,
+            "Test documentation content that is long enough to pass validation",
+        )
+        self.assertEqual(doc_request.framework, "python")
+        self.assertEqual(doc_request.category, "test_category")
         self.assertEqual(doc_request.source, "test.md")
+        self.assertEqual(doc_request.doc_type, "documentation")
 
 
 if __name__ == "__main__":
