@@ -21,12 +21,16 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install pytest
+        pip install pytest pytest-mock
+        pip install -r requirements.txt
     
-    - name: Run basic tests
+    - name: Run all tests
+      env:
+        PYTHONPATH: src
+        MCP_ENVIRONMENT: development
+        MCP_SECRET_KEY: test-secret-key-32-characters-long
       run: |
-        cd tests
-        python -m pytest test_basic.py -v
+        python -m pytest tests/ -v --tb=short
         
   lint:
     runs-on: ubuntu-latest
