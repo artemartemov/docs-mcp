@@ -24,6 +24,9 @@ help: ## Show this help message
 	@echo "🧪 Test Mode:"
 	@awk 'BEGIN {FS = ":.*?## "} /^test-.*:.*?## / {printf "  %-20s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 	@echo ""
+	@echo "🔄 Retry Failed URLs:"
+	@awk 'BEGIN {FS = ":.*?## "} /^(retry|retry-.*|list-failed-files):.*?## / {printf "  %-20s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
+	@echo ""
 	@echo "⏰ Maintenance:"
 	@awk 'BEGIN {FS = ":.*?## "} /^(weekly-update|clean-logs):.*?## / {printf "  %-20s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 	@echo ""
@@ -200,3 +203,95 @@ else
 	@echo "🧪 Testing $(SOURCE) documentation (limited)..."
 	./run_ingestion.sh --source $(SOURCE) --test
 endif
+
+# ============================================================================
+# RETRY FAILED URLS COMMANDS
+# ============================================================================
+
+# Individual retry targets
+retry-python: ## Retry failed Python URLs (make retry-python FAILED_FILE=path/to/file.json)
+ifndef FAILED_FILE
+	@echo "❌ Please specify FAILED_FILE. Example: make retry-python FAILED_FILE=logs/failed_urls_python_20240723_123456.json"
+	@echo "💡 Check logs/ directory for available failed URL files"
+	@ls -la logs/failed_urls_python_*.json 2>/dev/null || echo "No Python failed URL files found"
+else
+	@echo "🔄 Retrying failed Python URLs from: $(FAILED_FILE)"
+	./run_ingestion.sh --source python --retry $(FAILED_FILE)
+endif
+
+retry-react: ## Retry failed React URLs (make retry-react FAILED_FILE=path/to/file.json)
+ifndef FAILED_FILE
+	@echo "❌ Please specify FAILED_FILE. Example: make retry-react FAILED_FILE=logs/failed_urls_react_20240723_123456.json"
+	@echo "💡 Check logs/ directory for available failed URL files"
+	@ls -la logs/failed_urls_react_*.json 2>/dev/null || echo "No React failed URL files found"
+else
+	@echo "🔄 Retrying failed React URLs from: $(FAILED_FILE)"
+	./run_ingestion.sh --source react --retry $(FAILED_FILE)
+endif
+
+retry-swiftui: ## Retry failed SwiftUI URLs (make retry-swiftui FAILED_FILE=path/to/file.json)
+ifndef FAILED_FILE
+	@echo "❌ Please specify FAILED_FILE. Example: make retry-swiftui FAILED_FILE=logs/failed_urls_swiftui_20240723_123456.json"
+	@echo "💡 Check logs/ directory for available failed URL files"
+	@ls -la logs/failed_urls_swiftui_*.json 2>/dev/null || echo "No SwiftUI failed URL files found"
+else
+	@echo "🔄 Retrying failed SwiftUI URLs from: $(FAILED_FILE)"
+	./run_ingestion.sh --source swiftui --retry $(FAILED_FILE)
+endif
+
+retry-tailwind: ## Retry failed Tailwind URLs (make retry-tailwind FAILED_FILE=path/to/file.json)
+ifndef FAILED_FILE
+	@echo "❌ Please specify FAILED_FILE. Example: make retry-tailwind FAILED_FILE=logs/failed_urls_tailwind_20240723_123456.json"
+	@echo "💡 Check logs/ directory for available failed URL files"
+	@ls -la logs/failed_urls_tailwind_*.json 2>/dev/null || echo "No Tailwind failed URL files found"
+else
+	@echo "🔄 Retrying failed Tailwind URLs from: $(FAILED_FILE)"
+	./run_ingestion.sh --source tailwind --retry $(FAILED_FILE)
+endif
+
+retry-figma: ## Retry failed Figma URLs (make retry-figma FAILED_FILE=path/to/file.json)
+ifndef FAILED_FILE
+	@echo "❌ Please specify FAILED_FILE. Example: make retry-figma FAILED_FILE=logs/failed_urls_figma_20240723_123456.json"
+	@echo "💡 Check logs/ directory for available failed URL files"
+	@ls -la logs/failed_urls_figma_*.json 2>/dev/null || echo "No Figma failed URL files found"
+else
+	@echo "🔄 Retrying failed Figma URLs from: $(FAILED_FILE)"
+	./run_ingestion.sh --source figma --retry $(FAILED_FILE)
+endif
+
+retry-fastapi: ## Retry failed FastAPI URLs (make retry-fastapi FAILED_FILE=path/to/file.json)
+ifndef FAILED_FILE
+	@echo "❌ Please specify FAILED_FILE. Example: make retry-fastapi FAILED_FILE=logs/failed_urls_fastapi_20240723_123456.json"
+	@echo "💡 Check logs/ directory for available failed URL files"
+	@ls -la logs/failed_urls_fastapi_*.json 2>/dev/null || echo "No FastAPI failed URL files found"
+else
+	@echo "🔄 Retrying failed FastAPI URLs from: $(FAILED_FILE)"
+	./run_ingestion.sh --source fastapi --retry $(FAILED_FILE)
+endif
+
+# Dynamic retry command (make retry SOURCE=python FAILED_FILE=path/to/file.json)
+retry: ## Retry failed URLs for specific source (make retry SOURCE=python FAILED_FILE=path/to/file.json)
+ifndef SOURCE
+	@echo "❌ Please specify SOURCE and FAILED_FILE"
+	@echo "Example: make retry SOURCE=python FAILED_FILE=logs/failed_urls_python_20240723_123456.json"
+	@echo "Available sources: python, react, swiftui, tailwind, figma, fastapi"
+else ifndef FAILED_FILE
+	@echo "❌ Please specify FAILED_FILE"
+	@echo "Example: make retry SOURCE=$(SOURCE) FAILED_FILE=logs/failed_urls_$(SOURCE)_20240723_123456.json"
+	@echo "💡 Available failed URL files for $(SOURCE):"
+	@ls -la logs/failed_urls_$(SOURCE)_*.json 2>/dev/null || echo "No $(SOURCE) failed URL files found"
+else
+	@echo "🔄 Retrying failed $(SOURCE) URLs from: $(FAILED_FILE)"
+	./run_ingestion.sh --source $(SOURCE) --retry $(FAILED_FILE)
+endif
+
+# List all failed URL files
+list-failed-files: ## List all available failed URL files
+	@echo "📂 Available failed URL files:"
+	@echo ""
+	@for framework in python react swiftui tailwind figma fastapi; do \
+		echo "🔍 $$framework:"; \
+		ls -la logs/failed_urls_$$framework_*.json 2>/dev/null | awk '{print "   " $$9 " (" $$5 " bytes, " $$6 " " $$7 " " $$8 ")"}' || echo "   No failed URL files found"; \
+		echo ""; \
+	done
+	@echo "💡 To retry: make retry-<framework> FAILED_FILE=<file_path>"

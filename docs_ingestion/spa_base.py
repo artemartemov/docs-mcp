@@ -108,30 +108,75 @@ class SPADocumentationSource(BaseDocumentationSource, ABC):
         try:
             page = await self.context.new_page()
             
-            # Set up request/response logging for debugging
+            # Set up enhanced request/response monitoring
             page.on('response', lambda response: 
                 logger.debug(f"🌐 {response.status} {response.url}") if response.status >= 400 else None)
             
-            # Navigate to the page
-            logger.info(f"🌐 Loading page with browser: {url}")
-            response = await page.goto(url, wait_until='domcontentloaded', timeout=30000)
+            # Anti-bot detection: Set more realistic headers and behavior
+            await page.set_extra_http_headers({
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.5',
+                'Cache-Control': 'no-cache',
+                'Pragma': 'no-cache',
+                'Sec-Fetch-Dest': 'document',
+                'Sec-Fetch-Mode': 'navigate',
+                'Sec-Fetch-Site': 'none',
+                'Upgrade-Insecure-Requests': '1'
+            })
             
-            if not response or response.status >= 400:
-                logger.warning(f"❌ Failed to load page: {response.status if response else 'No response'}")
+            # Navigate with multiple timeout strategies
+            logger.info(f"🌐 Loading page with browser: {url}")
+            
+            # Strategy 1: Quick load with shorter timeout
+            try:
+                response = await page.goto(url, wait_until='domcontentloaded', timeout=10000)
+            except Exception as e:
+                logger.warning(f"⚠️  Quick load failed, trying fallback load: {e}")
+                
+                # Strategy 2: Fallback with no wait condition
+                try:
+                    response = await page.goto(url, wait_until='commit', timeout=8000)
+                except Exception as e2:
+                    logger.error(f"❌ Both load strategies failed: {e2}")
+                    return await self.extract_content_fallback(url)
+            
+            if not response:
+                logger.warning(f"❌ No response received for {url}")
+                return await self.extract_content_fallback(url)
+                
+            if response.status >= 400:
+                logger.warning(f"❌ HTTP error {response.status} for {url}")
                 return await self.extract_content_fallback(url)
             
-            # Wait for JavaScript content to load
-            await self._wait_for_spa_content(page, url)
+            # Wait for JavaScript content to load with timeout protection
+            try:
+                await asyncio.wait_for(
+                    self._wait_for_spa_content(page, url), 
+                    timeout=12.0  # Overall timeout for SPA content loading
+                )
+            except asyncio.TimeoutError:
+                logger.warning(f"⚠️  SPA content loading timeout for {url}, proceeding with available content")
             
-            # Extract title
-            title = await page.title()
-            title = await self._clean_title(title)
+            # Extract title with timeout protection
+            try:
+                title = await asyncio.wait_for(page.title(), timeout=3.0)
+                title = await self._clean_title(title)
+            except asyncio.TimeoutError:
+                logger.warning(f"⚠️  Title extraction timeout for {url}")
+                title = "Documentation Page"
             
-            # Extract main content using selectors
-            content_text = await self._extract_main_content(page, url)
+            # Extract main content using selectors with timeout protection
+            try:
+                content_text = await asyncio.wait_for(
+                    self._extract_main_content(page, url), 
+                    timeout=8.0
+                )
+            except asyncio.TimeoutError:
+                logger.warning(f"⚠️  Content extraction timeout for {url}")
+                content_text = ""
             
             if not content_text or len(content_text.strip()) < 100:
-                logger.warning(f"⚠️  Insufficient content extracted from {url}")
+                logger.warning(f"⚠️  Insufficient content extracted from {url} ({len(content_text) if content_text else 0} chars)")
                 return await self.extract_content_fallback(url)
             
             # Create metadata
@@ -146,7 +191,12 @@ class SPADocumentationSource(BaseDocumentationSource, ABC):
         
         finally:
             if page:
-                await page.close()
+                try:
+                    await asyncio.wait_for(page.close(), timeout=2.0)
+                except asyncio.TimeoutError:
+                    logger.warning(f"⚠️  Page close timeout for {url}")
+                except Exception as e:
+                    logger.debug(f"Page close error: {e}")
     
     async def _wait_for_spa_content(self, page: Page, url: str):
         """Wait for SPA content to load"""

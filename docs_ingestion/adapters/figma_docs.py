@@ -172,7 +172,7 @@ class FigmaDocsSource(SPADocumentationSource):
     async def _framework_specific_wait(self, page, url: str):
         """Figma-specific waiting logic for React SPA content"""
         try:
-            # Wait for Figma's documentation-specific elements
+            # Strategy 1: Quick check for immediate content
             figma_selectors = [
                 '[data-testid="documentation"]',
                 '.docs-content',
@@ -184,20 +184,24 @@ class FigmaDocsSource(SPADocumentationSource):
             
             for selector in figma_selectors:
                 try:
-                    await page.wait_for_selector(selector, timeout=3000)
+                    await page.wait_for_selector(selector, timeout=2000)  # Reduced timeout
                     logger.debug(f"✅ Found Figma doc selector: {selector}")
                     return
                 except:
                     continue
             
-            # Wait for React to render content
-            await page.wait_for_function(
-                "document.body.innerText.length > 1000", 
-                timeout=self.js_wait_timeout
-            )
+            # Strategy 2: Wait for basic content with reduced timeout
+            try:
+                await page.wait_for_function(
+                    "document.body.innerText.length > 500",  # Lower threshold
+                    timeout=5000  # Much shorter timeout
+                )
+                logger.debug("✅ Basic Figma content loaded")
+            except:
+                logger.debug("⚠️  Figma content load timeout, proceeding anyway")
             
-            # Additional wait for dynamic content loading
-            await asyncio.sleep(2)
+            # Strategy 3: Brief wait for dynamic content (non-blocking)
+            await asyncio.sleep(1)  # Reduced from 2 seconds
             
         except Exception as e:
             logger.debug(f"⚠️  Figma-specific wait failed for {url}: {e}")
@@ -205,7 +209,7 @@ class FigmaDocsSource(SPADocumentationSource):
     async def _framework_specific_content_extraction(self, page, url: str) -> Optional[str]:
         """Figma-specific content extraction from rendered React SPA"""
         try:
-            # Try Figma's specific content selectors
+            # Strategy 1: Try Figma's specific content selectors with timeout
             figma_content_selectors = [
                 'main[role="main"]',
                 '.docs-content',
@@ -217,47 +221,64 @@ class FigmaDocsSource(SPADocumentationSource):
             
             for selector in figma_content_selectors:
                 try:
-                    content = await page.text_content(selector)
-                    if content and len(content.strip()) > 300:
+                    content = await asyncio.wait_for(
+                        page.text_content(selector), 
+                        timeout=3.0
+                    )
+                    if content and len(content.strip()) > 200:  # Lower threshold
                         logger.debug(f"✅ Extracted Figma content using: {selector}")
                         return content.strip()
-                except:
+                except (asyncio.TimeoutError, Exception):
                     continue
             
-            # Advanced extraction: Remove known navigation/UI elements and get body content
-            content = await page.evaluate("""
-                () => {
-                    // Remove common Figma navigation and UI elements
-                    const elementsToRemove = document.querySelectorAll(`
-                        nav, .navigation, .sidebar, header, footer, .breadcrumbs,
-                        .cookie-banner, .newsletter-signup, script, style,
-                        [data-testid="header"], [data-testid="footer"],
-                        [data-testid="sidebar"], [data-testid="navigation"]
-                    `);
-                    elementsToRemove.forEach(el => el.remove());
-                    
-                    // Get main content from body
-                    const body = document.body;
-                    return body ? body.innerText : '';
-                }
-            """)
-            
-            if content and len(content.strip()) > 300:
-                return content.strip()
+            # Strategy 2: Advanced extraction with timeout protection
+            try:
+                content = await asyncio.wait_for(
+                    page.evaluate("""
+                        () => {
+                            // Remove common Figma navigation and UI elements
+                            const elementsToRemove = document.querySelectorAll(`
+                                nav, .navigation, .sidebar, header, footer, .breadcrumbs,
+                                .cookie-banner, .newsletter-signup, script, style,
+                                [data-testid="header"], [data-testid="footer"],
+                                [data-testid="sidebar"], [data-testid="navigation"]
+                            `);
+                            elementsToRemove.forEach(el => el.remove());
+                            
+                            // Get main content from body
+                            const body = document.body;
+                            return body ? body.innerText : '';
+                        }
+                    """), 
+                    timeout=4.0
+                )
                 
-            # Last resort: get any text content that mentions API-related terms
-            content = await page.evaluate("""
-                () => {
-                    const text = document.body.innerText;
-                    if (text.includes('API') || text.includes('endpoint') || text.includes('REST')) {
-                        return text;
-                    }
-                    return '';
-                }
-            """)
-            
-            if content and len(content.strip()) > 200:
-                return content.strip()
+                if content and len(content.strip()) > 200:
+                    return content.strip()
+            except (asyncio.TimeoutError, Exception) as e:
+                logger.debug(f"⚠️  Figma advanced extraction timeout: {e}")
+                
+            # Strategy 3: Last resort with minimal content check
+            try:
+                content = await asyncio.wait_for(
+                    page.evaluate("""
+                        () => {
+                            const text = document.body.innerText;
+                            if (text.includes('API') || text.includes('endpoint') || 
+                                text.includes('REST') || text.includes('Figma') ||
+                                text.length > 100) {
+                                return text;
+                            }
+                            return '';
+                        }
+                    """), 
+                    timeout=2.0
+                )
+                
+                if content and len(content.strip()) > 100:  # Even lower threshold
+                    return content.strip()
+            except (asyncio.TimeoutError, Exception) as e:
+                logger.debug(f"⚠️  Figma last resort extraction timeout: {e}")
                 
         except Exception as e:
             logger.debug(f"⚠️  Figma content extraction failed for {url}: {e}")

@@ -9,6 +9,7 @@ best practices including rate limiting, error handling, and comprehensive loggin
 import asyncio
 import logging
 import hashlib
+import json
 from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import Dict, List, Optional, Set, Any
@@ -105,6 +106,7 @@ class IngestionStats:
         self.start_time = datetime.utcnow()
         self.failed_urls: Set[str] = set()
         self.errors: List[str] = []
+        self.failed_details: Dict[str, str] = {}  # URL -> error message
     
     @property
     def success_rate(self) -> float:
@@ -239,6 +241,20 @@ class DocumentationIngester:
         source.stats.log_progress()
         logger.info(f"✅ Completed ingestion from {source.name}")
         
+        # Save failed URLs if any
+        if source.stats.failed_urls:
+            failed_file = self.save_failed_urls(source)
+            logger.info(f"""
+🔄 RETRY INSTRUCTIONS:
+   Failed URLs have been saved to: {failed_file}
+   
+   To retry only the failed URLs, run:
+   ./run_ingestion.sh --source {source.get_framework_name()} --retry {failed_file}
+   
+   Or use make commands:
+   make retry-{source.get_framework_name()} FAILED_FILE={failed_file}
+""")
+        
         return source.stats
     
     async def _process_batch(
@@ -267,6 +283,7 @@ class DocumentationIngester:
                 if not document or not document.is_valid():
                     source.stats.failed_ingestions += 1
                     source.stats.failed_urls.add(identifier)
+                    source.stats.failed_details[identifier] = "Invalid or empty content extracted"
                     continue
                 
                 # Preprocess content and postprocess metadata
@@ -282,6 +299,7 @@ class DocumentationIngester:
                 source.stats.errors.append(error_msg)
                 source.stats.failed_ingestions += 1
                 source.stats.failed_urls.add(identifier)
+                source.stats.failed_details[identifier] = str(e)
         
         # Batch insert to ChromaDB
         if documents_to_add:
@@ -369,3 +387,132 @@ class DocumentationIngester:
         except Exception as e:
             logger.error(f"Error getting collection stats: {e}")
             return {"error": str(e)}
+    
+    def save_failed_urls(self, source: BaseDocumentationSource, output_path: Optional[str] = None) -> str:
+        """Save failed URLs to a JSON file for retry functionality"""
+        if not output_path:
+            timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+            framework = source.get_framework_name()
+            output_path = f"logs/failed_urls_{framework}_{timestamp}.json"
+        
+        # Ensure logs directory exists
+        Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+        
+        failed_data = {
+            "framework": source.get_framework_name(),
+            "source_name": source.name,
+            "base_url": source.base_url,
+            "timestamp": datetime.utcnow().isoformat(),
+            "total_failed": len(source.stats.failed_urls),
+            "failed_urls": {
+                url: source.stats.failed_details.get(url, "Unknown error")
+                for url in source.stats.failed_urls
+            },
+            "ingestion_stats": {
+                "total_discovered": source.stats.total_discovered,
+                "total_processed": source.stats.total_processed,
+                "successful_ingestions": source.stats.successful_ingestions,
+                "failed_ingestions": source.stats.failed_ingestions,
+                "skipped_existing": source.stats.skipped_existing,
+                "success_rate": source.stats.success_rate,
+                "elapsed_time": source.stats.elapsed_time
+            }
+        }
+        
+        with open(output_path, 'w', encoding='utf-8') as f:
+            json.dump(failed_data, f, indent=2, ensure_ascii=False)
+        
+        logger.info(f"💾 Saved {len(source.stats.failed_urls)} failed URLs to: {output_path}")
+        return output_path
+    
+    def load_failed_urls(self, failed_urls_file: str) -> List[str]:
+        """Load failed URLs from a JSON file"""
+        try:
+            with open(failed_urls_file, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            
+            failed_urls = list(data.get("failed_urls", {}).keys())
+            logger.info(f"📂 Loaded {len(failed_urls)} failed URLs from: {failed_urls_file}")
+            
+            # Log some stats about the failures
+            if "ingestion_stats" in data:
+                stats = data["ingestion_stats"]
+                logger.info(f"""
+📊 ORIGINAL INGESTION STATS:
+   Framework: {data.get('framework', 'unknown')}
+   Total Processed: {stats.get('total_processed', 0)}
+   Failed: {stats.get('failed_ingestions', 0)}
+   Success Rate: {stats.get('success_rate', 0):.1f}%
+   Original Date: {data.get('timestamp', 'unknown')}
+""")
+            
+            return failed_urls
+            
+        except Exception as e:
+            logger.error(f"❌ Failed to load failed URLs from {failed_urls_file}: {e}")
+            return []
+    
+    async def retry_failed_urls(
+        self,
+        source: BaseDocumentationSource,
+        failed_urls: List[str],
+        test_mode: bool = False
+    ) -> IngestionStats:
+        """Retry ingestion for specific failed URLs"""
+        logger.info(f"🔄 Starting retry ingestion for {len(failed_urls)} failed URLs...")
+        
+        if test_mode:
+            logger.info("🧪 Running in test mode (limited URLs)")
+            failed_urls = failed_urls[:10]  # Limit to 10 URLs in test mode
+        
+        # Reset stats for retry attempt
+        source.stats = IngestionStats()
+        source.stats.total_discovered = len(failed_urls)
+        
+        # Run the ingestion with only the failed URLs
+        await self.ingest_with_urls(source, failed_urls, test_mode)
+        
+        return source.stats
+    
+    async def ingest_with_urls(
+        self,
+        source: BaseDocumentationSource,
+        urls: List[str],
+        test_mode: bool = False
+    ):
+        """Run ingestion with a specific list of URLs (used for retries)"""
+        logger.info(f"📥 Starting targeted ingestion for {len(urls)} URLs...")
+        
+        if test_mode:
+            logger.info("🧪 Test mode enabled")
+            urls = urls[:10]
+        
+        # Process in batches
+        total_batches = (len(urls) + source.batch_size - 1) // source.batch_size
+        
+        for i in range(0, len(urls), source.batch_size):
+            batch_urls = urls[i:i + source.batch_size]
+            batch_num = (i // source.batch_size) + 1
+            
+            await self._process_batch(source, batch_urls, batch_num, total_batches)
+            
+            # Rate limiting between batches
+            if i + source.batch_size < len(urls):
+                await asyncio.sleep(source.rate_limit_delay)
+        
+        # Final statistics
+        logger.info(f"""
+🎯 RETRY INGESTION COMPLETED:
+   URLs Attempted: {len(urls)}
+   Successful: {source.stats.successful_ingestions}
+   Failed: {source.stats.failed_ingestions}
+   Success Rate: {source.stats.success_rate:.1f}%
+   Total Time: {source.stats.elapsed_time:.1f}s
+""")
+        
+        # Save any new failures
+        if source.stats.failed_urls:
+            failed_file = self.save_failed_urls(source)
+            logger.info(f"💾 New failures saved to: {failed_file}")
+        else:
+            logger.info("🎉 All retry URLs succeeded!")

@@ -12,12 +12,13 @@ import logging
 import argparse
 from pathlib import Path
 from typing import List, Dict, Any
+from datetime import datetime
 import json
 
 from docs_ingestion import DocumentationIngester
 from docs_ingestion.adapters import (
     PythonDocsSource, FastAPIDocsSource, ReactDocsSource,
-    SwiftUIDocsSource, TailwindDocsSource, FigmaDocsSource
+    SwiftUIDocsSource, TailwindDocsSource, FigmaDocsSource, FigmaScreenshotDocsSource
 )
 from config import get_settings, create_log_directory
 
@@ -76,8 +77,8 @@ class IngestionConfig:
         },
         "figma": {
             "name": "Figma API Official Documentation",
-            "description": "Figma API documentation for developers",
-            "class": FigmaDocsSource,
+            "description": "Figma API documentation for developers (enhanced screenshot extraction)",
+            "class": FigmaScreenshotDocsSource,
             "versions": ["latest"],
             "default_version": "latest"
         }
@@ -216,7 +217,7 @@ async def ingest_multiple_sources(sources: List[str], test_mode: bool = False) -
             elif source_name == "figma":
                 config = IngestionConfig.get_source_info("figma")
                 version = config.get("default_version", "latest")
-                result = await ingest_generic_docs(FigmaDocsSource, source_name, version, test_mode)
+                result = await ingest_generic_docs(FigmaScreenshotDocsSource, source_name, version, test_mode)
                 results[source_name] = result
             else:
                 logger.warning(f"⚠️  Source '{source_name}' not yet implemented")
@@ -288,6 +289,87 @@ def print_summary(results: Dict[str, Any]):
                     for fw, count in stats["frameworks"].items():
                         logger.info(f"   {fw}: {count}")
                 break
+
+async def handle_retry_ingestion(retry_file: str, source_name: str, test_mode: bool, output_file: str = None):
+    """Handle retry ingestion from failed URLs file"""
+    logger.info(f"🔄 Starting retry ingestion from: {retry_file}")
+    
+    # Validate retry file exists
+    if not Path(retry_file).exists():
+        logger.error(f"❌ Retry file not found: {retry_file}")
+        return
+    
+    ingester = DocumentationIngester()
+    
+    # Load failed URLs
+    failed_urls = ingester.load_failed_urls(retry_file)
+    if not failed_urls:
+        logger.error("❌ No failed URLs found in retry file")
+        return
+    
+    # Determine the source class from the file or command line
+    try:
+        with open(retry_file, 'r') as f:
+            retry_data = json.load(f)
+        framework = retry_data.get("framework", source_name)
+    except Exception:
+        framework = source_name
+    
+    # Get the appropriate source class
+    config = IngestionConfig.get_source_info(framework)
+    if not config:
+        logger.error(f"❌ Unknown framework: {framework}")
+        return
+    
+    source_class = config["class"]
+    version = config.get("default_version", "latest")
+    
+    logger.info(f"🎯 Retrying {len(failed_urls)} failed URLs for {framework}")
+    
+    # Create source instance and run retry
+    async with source_class(version=version) as source:
+        if test_mode:
+            logger.info("🧪 Running retry in test mode")
+        
+        retry_stats = await ingester.retry_failed_urls(source, failed_urls, test_mode)
+    
+    # Create result for reporting
+    result = {
+        "source": f"{framework}_retry",
+        "original_file": retry_file,
+        "retry_stats": {
+            "urls_attempted": len(failed_urls),
+            "successful_ingestions": retry_stats.successful_ingestions,
+            "failed_ingestions": retry_stats.failed_ingestions,
+            "success_rate": retry_stats.success_rate,
+            "elapsed_time": retry_stats.elapsed_time,
+        },
+        "collection_stats": ingester.get_collection_stats()
+    }
+    
+    # Save retry report
+    if not output_file:
+        timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+        output_file = f"logs/retry_report_{framework}_{timestamp}.json"
+    
+    save_ingestion_report({"retry_results": result}, output_file)
+    
+    # Print summary
+    logger.info("="* 60)
+    logger.info("🔄 RETRY INGESTION SUMMARY")
+    logger.info("="* 60)
+    logger.info(f"""
+📚 {framework.upper()} RETRY:
+   URLs Attempted: {len(failed_urls)}
+   Successful: {retry_stats.successful_ingestions} ({retry_stats.success_rate:.1f}%)
+   Still Failed: {retry_stats.failed_ingestions}
+   Time: {retry_stats.elapsed_time:.1f}s
+""")
+    
+    if retry_stats.failed_ingestions == 0:
+        logger.info("🎉 All retry URLs succeeded!")
+    else:
+        logger.info(f"⚠️  {retry_stats.failed_ingestions} URLs still failing after retry")
 
 async def check_prerequisites():
     """Check that all prerequisites are met before ingestion"""
@@ -368,6 +450,11 @@ Examples:
         help="Skip prerequisite checks"
     )
     
+    parser.add_argument(
+        "--retry",
+        help="Path to failed URLs JSON file for retry ingestion"
+    )
+    
     args = parser.parse_args()
     
     # Handle list sources command
@@ -385,6 +472,11 @@ Examples:
             return
     
     try:
+        # Handle retry mode
+        if args.retry:
+            await handle_retry_ingestion(args.retry, args.source, args.test, args.output)
+            return
+        
         # Determine sources to ingest
         if args.source == "all":
             sources = IngestionConfig.list_available_sources()
