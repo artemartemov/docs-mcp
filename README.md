@@ -1,5 +1,10 @@
 # docs-mcp
 
+[![CI/CD Pipeline](https://github.com/artemartemov/docs-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/artemartemov/docs-mcp/actions/workflows/ci.yml)
+[![Test Coverage](https://github.com/artemartemov/docs-mcp/actions/workflows/coverage.yml/badge.svg)](https://github.com/artemartemov/docs-mcp/actions/workflows/coverage.yml)
+[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 A secure Model Context Protocol (MCP) server providing intelligent documentation search across multiple frameworks using ChromaDB vector storage.
 
 ## Features

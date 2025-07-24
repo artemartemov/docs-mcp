@@ -225,6 +225,28 @@ class TestEnvironmentIntegration:
                 assert settings.log_level == "WARNING"
                 assert settings.chroma_data_dir == temp_dir
 
+    def test_ci_cd_environment(self):
+        """Test CI/CD environment configuration compatibility"""
+        # This test ensures our configuration works in CI/CD environments
+        with tempfile.TemporaryDirectory() as temp_dir:
+            with patch.dict(
+                os.environ,
+                {
+                    "MCP_CHROMA_DATA_DIR": temp_dir,
+                    "MCP_ENVIRONMENT": "development",
+                    "MCP_SECRET_KEY": "test-secret-key-32-characters-long-for-testing",
+                },
+                clear=True,
+            ):
+                settings = Settings()
+                
+                # Verify CI/CD friendly settings
+                assert settings.environment == "development"
+                assert settings.chroma_data_dir == temp_dir
+                assert len(settings.secret_key) >= 32
+                assert settings.host == "127.0.0.1"  # Safe for CI
+                assert settings.max_query_length == 1000  # Reasonable default
+
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
