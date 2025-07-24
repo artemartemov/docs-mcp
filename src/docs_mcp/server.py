@@ -21,7 +21,7 @@ from fastmcp import FastMCP
 from pydantic import BaseModel, field_validator, Field
 from chromadb.config import Settings as ChromaSettings
 
-from config import get_settings, validate_environment, create_log_directory
+from .config import get_settings, validate_environment, create_log_directory
 
 # Initialize settings and validate environment
 settings = get_settings()
