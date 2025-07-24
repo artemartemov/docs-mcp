@@ -98,7 +98,9 @@ class FastAPIDocsSource(BaseDocumentationSource):
                     if self._should_include_url(full_url):
                         discovered_urls.add(full_url)
             
-            logger.info(f"   Added {len([u for u in discovered_urls if '/reference/' in u])} reference URLs from inventory")
+            # Optimize reference URL counting
+            reference_urls = {u for u in discovered_urls if '/reference/' in u}
+            logger.info(f"   Added {len(reference_urls)} reference URLs from inventory")
             
         except Exception as e:
             logger.warning(f"⚠️  Failed to load Sphinx inventory: {e}")

@@ -114,8 +114,8 @@ class MDNCSSDocsSource(BaseDocumentationSource):
             # Special discovery for CSS properties index
             await self._discover_css_properties(discovered_urls)
             
-            # Filter and sort URLs
-            filtered_urls = [url for url in discovered_urls if self._should_include_url(url)]
+            # Filter and sort URLs - optimize with set comprehension
+            filtered_urls = list({url for url in discovered_urls if self._should_include_url(url)})
             logger.info(f"📋 Discovered {len(filtered_urls)} relevant CSS documentation pages")
             
             return sorted(filtered_urls)

@@ -101,8 +101,8 @@ class FigmaPluginDocsSource(BaseDocumentationSource):
                 await self._discover_from_page(start_url, discovered_urls)
                 await asyncio.sleep(self.rate_limit_delay)
             
-            # Filter and sort URLs
-            filtered_urls = [url for url in discovered_urls if self._should_include_url(url)]
+            # Filter and sort URLs - optimize performance
+            filtered_urls = list({url for url in discovered_urls if self._should_include_url(url)})
             logger.info(f"📋 Discovered {len(filtered_urls)} relevant documentation pages")
             
             return sorted(filtered_urls)
