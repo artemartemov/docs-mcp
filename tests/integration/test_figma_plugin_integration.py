@@ -57,13 +57,17 @@ class FigmaPluginDocumentationTests:
                 settings=ChromaSettings(anonymized_telemetry=False, allow_reset=False),
             )
 
-            self.collection = self.chroma_client.get_collection("documentation_collection")
+            self.collection = self.chroma_client.get_collection(
+                "documentation_collection"
+            )
             self.log_test_result(
                 "ChromaDB Connection", True, "Successfully connected to collection"
             )
             return True
         except Exception as e:
-            self.log_test_result("ChromaDB Connection", False, f"Failed to connect: {e}")
+            self.log_test_result(
+                "ChromaDB Connection", False, f"Failed to connect: {e}"
+            )
             return False
 
     def test_figma_plugin_document_count(self):
@@ -116,7 +120,9 @@ class FigmaPluginDocumentationTests:
 
                 count = len(category_docs["ids"])
                 if count > 0:
-                    self.log_test_result(f"Category: {category}", True, f"Found {count} documents")
+                    self.log_test_result(
+                        f"Category: {category}", True, f"Found {count} documents"
+                    )
                 else:
                     # Some categories may not exist yet, that's okay
                     self.log_test_result(
@@ -156,7 +162,9 @@ class FigmaPluginDocumentationTests:
                         f"Only found terms: {', '.join(found_terms)}",
                     )
             else:
-                self.log_test_result("Plugin API Content", False, "No Plugin API docs found")
+                self.log_test_result(
+                    "Plugin API Content", False, "No Plugin API docs found"
+                )
         except Exception as e:
             self.log_test_result("Plugin API Content", False, f"Error: {e}")
 
@@ -189,7 +197,9 @@ class FigmaPluginDocumentationTests:
                         f"Limited widget content - found: {', '.join(found_terms)}",
                     )
             else:
-                self.log_test_result("Widget API Content", False, "No Widget API docs found")
+                self.log_test_result(
+                    "Widget API Content", False, "No Widget API docs found"
+                )
         except Exception as e:
             self.log_test_result("Widget API Content", False, f"Error: {e}")
 
@@ -270,7 +280,9 @@ class FigmaPluginDocumentationTests:
                         f"Limited guide content - found: {', '.join(found_terms)}",
                     )
             else:
-                self.log_test_result("Development Guides", False, "No development guides found")
+                self.log_test_result(
+                    "Development Guides", False, "No development guides found"
+                )
         except Exception as e:
             self.log_test_result("Development Guides", False, f"Error: {e}")
 
@@ -294,7 +306,9 @@ class FigmaPluginDocumentationTests:
                 metadata_quality = []
 
                 for metadata in sample_docs["metadatas"][:5]:
-                    missing_fields = [field for field in required_fields if field not in metadata]
+                    missing_fields = [
+                        field for field in required_fields if field not in metadata
+                    ]
                     if not missing_fields:
                         metadata_quality.append("complete")
                     else:
@@ -352,7 +366,9 @@ class FigmaPluginDocumentationTests:
                             f"Results not relevant to {expected_topic}",
                         )
                 else:
-                    self.log_test_result(f"Search: '{query}'", False, "No results found")
+                    self.log_test_result(
+                        f"Search: '{query}'", False, "No results found"
+                    )
             except Exception as e:
                 self.log_test_result(f"Search: '{query}'", False, f"Error: {e}")
 
@@ -378,7 +394,9 @@ class FigmaPluginDocumentationTests:
                 found_expected = [dt for dt in expected_types if dt in doc_types]
 
                 if len(found_expected) >= 2:
-                    type_summary = ", ".join([f"{dt}: {doc_types[dt]}" for dt in found_expected])
+                    type_summary = ", ".join(
+                        [f"{dt}: {doc_types[dt]}" for dt in found_expected]
+                    )
                     self.log_test_result(
                         "Document Type Distribution",
                         True,
@@ -391,13 +409,17 @@ class FigmaPluginDocumentationTests:
                         f"Missing expected doc types. Found: {list(doc_types.keys())}",
                     )
             else:
-                self.log_test_result("Document Type Distribution", False, "No metadata available")
+                self.log_test_result(
+                    "Document Type Distribution", False, "No metadata available"
+                )
         except Exception as e:
             self.log_test_result("Document Type Distribution", False, f"Error: {e}")
 
     def run_all_tests(self):
         """Run comprehensive test suite"""
-        logger.info("🧪 Starting comprehensive Figma Plugin documentation integration tests...")
+        logger.info(
+            "🧪 Starting comprehensive Figma Plugin documentation integration tests..."
+        )
 
         # Setup
         if not self.setup_chromadb_connection():

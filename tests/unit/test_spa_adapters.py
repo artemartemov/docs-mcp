@@ -31,7 +31,9 @@ async def test_swiftui_spa():
         # Test with browser automation enabled
         async with SwiftUIDocsSource(use_browser=True) as source:
             if not source.is_browser_enabled():
-                logger.warning("⚠️  Browser automation not available, testing fallback mode")
+                logger.warning(
+                    "⚠️  Browser automation not available, testing fallback mode"
+                )
 
             # Test URL discovery
             urls = await source.discover_content()
@@ -74,7 +76,9 @@ async def test_figma_spa():
         # Test with browser automation enabled
         async with FigmaDocsSource(use_browser=True) as source:
             if not source.is_browser_enabled():
-                logger.warning("⚠️  Browser automation not available, testing fallback mode")
+                logger.warning(
+                    "⚠️  Browser automation not available, testing fallback mode"
+                )
 
             # Test URL discovery
             urls = await source.discover_content()
@@ -130,7 +134,9 @@ async def test_comparison():
         if browser_content and fallback_content:
             logger.info("\n📊 COMPARISON RESULTS:")
             logger.info(f"Browser content length: {len(browser_content.content)} chars")
-            logger.info(f"Fallback content length: {len(fallback_content.content)} chars")
+            logger.info(
+                f"Fallback content length: {len(fallback_content.content)} chars"
+            )
 
             browser_tags = set(browser_content.metadata.tags)
             fallback_tags = set(fallback_content.metadata.tags)

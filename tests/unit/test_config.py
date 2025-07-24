@@ -124,7 +124,9 @@ class TestConfigurationFunctions:
         mock_settings.chroma_data_dir = "/tmp"  # Will be mocked
         mock_settings.secret_key = "a" * 32
 
-        with patch("os.access", return_value=True), patch("pathlib.Path.exists", return_value=True):
+        with patch("os.access", return_value=True), patch(
+            "pathlib.Path.exists", return_value=True
+        ):
 
             # Should not raise exception
             result = validate_environment()
@@ -138,7 +140,9 @@ class TestConfigurationFunctions:
         mock_settings.chroma_data_dir = "/tmp"
         mock_settings.secret_key = "a" * 32
 
-        with patch("os.access", return_value=True), patch("pathlib.Path.exists", return_value=True):
+        with patch("os.access", return_value=True), patch(
+            "pathlib.Path.exists", return_value=True
+        ):
 
             with pytest.raises(ConfigurationError, match="OpenAI API key is required"):
                 validate_environment()
@@ -179,7 +183,9 @@ class TestConfigurationFunctions:
         mock_settings.chroma_data_dir = "/tmp"
         mock_settings.secret_key = "weak"
 
-        with patch("os.access", return_value=True), patch("pathlib.Path.exists", return_value=True):
+        with patch("os.access", return_value=True), patch(
+            "pathlib.Path.exists", return_value=True
+        ):
 
             with pytest.raises(ConfigurationError, match="at least.*characters"):
                 validate_environment()

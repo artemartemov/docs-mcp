@@ -57,20 +57,26 @@ class FigmaDocumentationTests:
                 settings=ChromaSettings(anonymized_telemetry=False, allow_reset=False),
             )
 
-            self.collection = self.chroma_client.get_collection("documentation_collection")
+            self.collection = self.chroma_client.get_collection(
+                "documentation_collection"
+            )
             self.log_test_result(
                 "ChromaDB Connection", True, "Successfully connected to collection"
             )
             return True
         except Exception as e:
-            self.log_test_result("ChromaDB Connection", False, f"Failed to connect: {e}")
+            self.log_test_result(
+                "ChromaDB Connection", False, f"Failed to connect: {e}"
+            )
             return False
 
     def test_figma_document_count(self):
         """Test that Figma documents were successfully ingested"""
         try:
             # Get all Figma documents
-            figma_docs = self.collection.get(where={"framework": "figma"}, include=["metadatas"])
+            figma_docs = self.collection.get(
+                where={"framework": "figma"}, include=["metadatas"]
+            )
 
             figma_count = len(figma_docs["ids"])
             expected_min = 100  # We expect at least 100 Figma documents
@@ -115,9 +121,13 @@ class FigmaDocumentationTests:
 
                 count = len(category_docs["ids"])
                 if count > 0:
-                    self.log_test_result(f"Category: {category}", True, f"Found {count} documents")
+                    self.log_test_result(
+                        f"Category: {category}", True, f"Found {count} documents"
+                    )
                 else:
-                    self.log_test_result(f"Category: {category}", False, "No documents found")
+                    self.log_test_result(
+                        f"Category: {category}", False, "No documents found"
+                    )
         except Exception as e:
             self.log_test_result("Content Categories", False, f"Error: {e}")
 
@@ -171,14 +181,21 @@ class FigmaDocumentationTests:
                 n_results=10,
             )
 
-            if endpoints_results["documents"] and len(endpoints_results["documents"][0]) > 0:
+            if (
+                endpoints_results["documents"]
+                and len(endpoints_results["documents"][0]) > 0
+            ):
                 # Check for HTTP methods and API patterns
                 content = " ".join(endpoints_results["documents"][0]).lower()
                 http_methods = ["get ", "post ", "put ", "delete "]
                 api_patterns = ["endpoint", "api.figma.com", "/v1/", "curl"]
 
-                found_methods = [method.strip() for method in http_methods if method in content]
-                found_patterns = [pattern for pattern in api_patterns if pattern in content]
+                found_methods = [
+                    method.strip() for method in http_methods if method in content
+                ]
+                found_patterns = [
+                    pattern for pattern in api_patterns if pattern in content
+                ]
 
                 if len(found_methods) >= 2 and len(found_patterns) >= 2:
                     self.log_test_result(
@@ -193,7 +210,9 @@ class FigmaDocumentationTests:
                         f"Limited content - methods: {found_methods}, patterns: {found_patterns}",
                     )
             else:
-                self.log_test_result("API Endpoints Content", False, "No API endpoint docs found")
+                self.log_test_result(
+                    "API Endpoints Content", False, "No API endpoint docs found"
+                )
         except Exception as e:
             self.log_test_result("API Endpoints Content", False, f"Error: {e}")
 
@@ -249,7 +268,10 @@ class FigmaDocumentationTests:
                 n_results=5,
             )
 
-            if webhook_results["documents"] and len(webhook_results["documents"][0]) > 0:
+            if (
+                webhook_results["documents"]
+                and len(webhook_results["documents"][0]) > 0
+            ):
                 content = " ".join(webhook_results["documents"][0]).lower()
                 webhook_terms = [
                     "webhook",
@@ -274,7 +296,9 @@ class FigmaDocumentationTests:
                         f"Limited webhook content - found: {', '.join(found_terms)}",
                     )
             else:
-                self.log_test_result("Webhook Documentation", False, "No webhook docs found")
+                self.log_test_result(
+                    "Webhook Documentation", False, "No webhook docs found"
+                )
         except Exception as e:
             self.log_test_result("Webhook Documentation", False, f"Error: {e}")
 
@@ -298,7 +322,9 @@ class FigmaDocumentationTests:
                 metadata_quality = []
 
                 for metadata in sample_docs["metadatas"][:5]:
-                    missing_fields = [field for field in required_fields if field not in metadata]
+                    missing_fields = [
+                        field for field in required_fields if field not in metadata
+                    ]
                     if not missing_fields:
                         metadata_quality.append("complete")
                     else:
@@ -354,14 +380,18 @@ class FigmaDocumentationTests:
                             f"Results not relevant to {expected_topic}",
                         )
                 else:
-                    self.log_test_result(f"Search: '{query}'", False, "No results found")
+                    self.log_test_result(
+                        f"Search: '{query}'", False, "No results found"
+                    )
             except Exception as e:
                 self.log_test_result(f"Search: '{query}'", False, f"Error: {e}")
 
     def test_doc_type_distribution(self):
         """Test distribution of document types"""
         try:
-            figma_docs = self.collection.get(where={"framework": "figma"}, include=["metadatas"])
+            figma_docs = self.collection.get(
+                where={"framework": "figma"}, include=["metadatas"]
+            )
 
             if figma_docs["metadatas"]:
                 doc_types = {}
@@ -378,7 +408,9 @@ class FigmaDocumentationTests:
                 found_expected = [dt for dt in expected_types if dt in doc_types]
 
                 if len(found_expected) >= 3:
-                    type_summary = ", ".join([f"{dt}: {doc_types[dt]}" for dt in found_expected])
+                    type_summary = ", ".join(
+                        [f"{dt}: {doc_types[dt]}" for dt in found_expected]
+                    )
                     self.log_test_result(
                         "Document Type Distribution",
                         True,
@@ -391,13 +423,17 @@ class FigmaDocumentationTests:
                         f"Missing expected doc types. Found: {list(doc_types.keys())}",
                     )
             else:
-                self.log_test_result("Document Type Distribution", False, "No metadata available")
+                self.log_test_result(
+                    "Document Type Distribution", False, "No metadata available"
+                )
         except Exception as e:
             self.log_test_result("Document Type Distribution", False, f"Error: {e}")
 
     def run_all_tests(self):
         """Run comprehensive test suite"""
-        logger.info("🧪 Starting comprehensive Figma documentation integration tests...")
+        logger.info(
+            "🧪 Starting comprehensive Figma documentation integration tests..."
+        )
 
         # Setup
         if not self.setup_chromadb_connection():
@@ -434,7 +470,9 @@ class FigmaDocumentationTests:
         # Overall assessment
         success_rate = self.test_results["passed"] / self.test_results["total_tests"]
         if success_rate >= 0.9:
-            logger.info("\n🎉 INTEGRATION TEST PASSED! Figma documentation is properly integrated.")
+            logger.info(
+                "\n🎉 INTEGRATION TEST PASSED! Figma documentation is properly integrated."
+            )
             return True
         elif success_rate >= 0.7:
             logger.info("\n⚠️  INTEGRATION TEST PARTIAL SUCCESS. Some issues detected.")

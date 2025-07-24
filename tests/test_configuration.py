@@ -84,7 +84,7 @@ class TestConfiguration(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             # Test with a proper secret key
             settings = Settings(
-                secret_key="test-secret-key-32-characters-long", 
+                secret_key="test-secret-key-32-characters-long",
                 chroma_data_dir=temp_dir,
             )
             # Secret key should be set as provided

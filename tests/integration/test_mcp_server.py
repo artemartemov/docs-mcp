@@ -76,7 +76,9 @@ class TestMCPServerIntegration:
                 # Should not contain error indicators for valid queries
                 error_indicators = ["❌", "Error", "failed", "unavailable"]
                 if any(indicator in result for indicator in error_indicators):
-                    logger.warning(f"{tool_name} returned error-like response: {result[:100]}...")
+                    logger.warning(
+                        f"{tool_name} returned error-like response: {result[:100]}..."
+                    )
 
     @pytest.mark.asyncio
     async def test_security_guidelines_tool(self):
@@ -98,7 +100,9 @@ class TestMCPServerIntegration:
             result = await asyncio.to_thread(tool)
 
             assert isinstance(result, str), "Collection stats should return string"
-            assert "Documents" in result or "Collection" in result, "Should contain stats info"
+            assert (
+                "Documents" in result or "Collection" in result
+            ), "Should contain stats info"
 
     @pytest.mark.asyncio
     async def test_add_documentation_tool(self):
@@ -131,7 +135,9 @@ class TestMCPServerIntegration:
                 tool = mcp._tools[tool_name]
 
                 if tool_name == "search_accessibility_patterns":
-                    result = await asyncio.to_thread(tool, "form accessibility", "all", "AA", 1)
+                    result = await asyncio.to_thread(
+                        tool, "form accessibility", "all", "AA", 1
+                    )
                     assert isinstance(result, str), f"{tool_name} should return string"
 
                 elif tool_name == "add_accessibility_pattern":
@@ -186,7 +192,9 @@ class TestMCPServerIntegration:
 
         # Should handle multiple concurrent requests gracefully
         for result in results:
-            assert not isinstance(result, Exception), f"Should handle concurrent requests: {result}"
+            assert not isinstance(
+                result, Exception
+            ), f"Should handle concurrent requests: {result}"
             assert isinstance(result, str), "Each result should be a string"
 
     @pytest.mark.asyncio

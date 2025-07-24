@@ -124,7 +124,9 @@ class TestToolRegistration(unittest.TestCase):
             description_lower = tool.description.lower()
             for keyword in keywords:
                 self.assertIn(
-                    keyword, description_lower, f"Tool {tool.name} missing keyword '{keyword}'"
+                    keyword,
+                    description_lower,
+                    f"Tool {tool.name} missing keyword '{keyword}'",
                 )
 
     def test_format_results_helper_function(self):

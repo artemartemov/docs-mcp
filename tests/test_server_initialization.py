@@ -72,7 +72,9 @@ class TestServerInitialization(unittest.TestCase):
                 self.assertIsNotNone(mcp)
             except Exception as e:
                 # Server should initialize even if ChromaDB is not available
-                self.assertIn("chroma", str(e).lower(), "Unexpected initialization error")
+                self.assertIn(
+                    "chroma", str(e).lower(), "Unexpected initialization error"
+                )
 
 
 if __name__ == "__main__":

@@ -61,20 +61,26 @@ class MDNCSSDocumentationTests:
                 settings=ChromaSettings(anonymized_telemetry=False, allow_reset=False),
             )
 
-            self.collection = self.chroma_client.get_collection("documentation_collection")
+            self.collection = self.chroma_client.get_collection(
+                "documentation_collection"
+            )
             self.log_test_result(
                 "ChromaDB Connection", True, "Successfully connected to collection"
             )
             return True
         except Exception as e:
-            self.log_test_result("ChromaDB Connection", False, f"Failed to connect: {e}")
+            self.log_test_result(
+                "ChromaDB Connection", False, f"Failed to connect: {e}"
+            )
             return False
 
     def test_css_document_count(self):
         """Test that CSS documents were successfully ingested"""
         try:
             # Get all CSS documents
-            css_docs = self.collection.get(where={"framework": "css"}, include=["metadatas"])
+            css_docs = self.collection.get(
+                where={"framework": "css"}, include=["metadatas"]
+            )
 
             css_count = len(css_docs["ids"])
             expected_min = 200  # We expect at least 200 CSS documents
@@ -106,7 +112,10 @@ class MDNCSSDocumentationTests:
                 n_results=5,
             )
 
-            if properties_results["documents"] and len(properties_results["documents"][0]) > 0:
+            if (
+                properties_results["documents"]
+                and len(properties_results["documents"][0]) > 0
+            ):
                 # Check for key CSS property terms
                 content = " ".join(properties_results["documents"][0]).lower()
                 key_terms = [
@@ -149,7 +158,10 @@ class MDNCSSDocumentationTests:
                 n_results=5,
             )
 
-            if selectors_results["documents"] and len(selectors_results["documents"][0]) > 0:
+            if (
+                selectors_results["documents"]
+                and len(selectors_results["documents"][0]) > 0
+            ):
                 # Check for CSS selector terms
                 content = " ".join(selectors_results["documents"][0]).lower()
                 selector_terms = [
@@ -176,7 +188,9 @@ class MDNCSSDocumentationTests:
                         f"Limited selector content - found: {', '.join(found_terms)}",
                     )
             else:
-                self.log_test_result("CSS Selectors Content", False, "No CSS selectors docs found")
+                self.log_test_result(
+                    "CSS Selectors Content", False, "No CSS selectors docs found"
+                )
         except Exception as e:
             self.log_test_result("CSS Selectors Content", False, f"Error: {e}")
 
@@ -217,7 +231,9 @@ class MDNCSSDocumentationTests:
                         f"Limited layout content - found: {', '.join(found_terms)}",
                     )
             else:
-                self.log_test_result("CSS Layout Content", False, "No CSS layout docs found")
+                self.log_test_result(
+                    "CSS Layout Content", False, "No CSS layout docs found"
+                )
         except Exception as e:
             self.log_test_result("CSS Layout Content", False, f"Error: {e}")
 
@@ -230,7 +246,10 @@ class MDNCSSDocumentationTests:
                 n_results=5,
             )
 
-            if animation_results["documents"] and len(animation_results["documents"][0]) > 0:
+            if (
+                animation_results["documents"]
+                and len(animation_results["documents"][0]) > 0
+            ):
                 content = " ".join(animation_results["documents"][0]).lower()
                 animation_terms = [
                     "animation",
@@ -270,7 +289,10 @@ class MDNCSSDocumentationTests:
                 n_results=5,
             )
 
-            if responsive_results["documents"] and len(responsive_results["documents"][0]) > 0:
+            if (
+                responsive_results["documents"]
+                and len(responsive_results["documents"][0]) > 0
+            ):
                 content = " ".join(responsive_results["documents"][0]).lower()
                 responsive_terms = [
                     "responsive",
@@ -322,7 +344,9 @@ class MDNCSSDocumentationTests:
                 metadata_quality = []
 
                 for metadata in sample_docs["metadatas"][:5]:
-                    missing_fields = [field for field in required_fields if field not in metadata]
+                    missing_fields = [
+                        field for field in required_fields if field not in metadata
+                    ]
                     if not missing_fields:
                         metadata_quality.append("complete")
                     else:
@@ -380,14 +404,18 @@ class MDNCSSDocumentationTests:
                             f"Results not relevant to {expected_topic}",
                         )
                 else:
-                    self.log_test_result(f"Search: '{query}'", False, "No results found")
+                    self.log_test_result(
+                        f"Search: '{query}'", False, "No results found"
+                    )
             except Exception as e:
                 self.log_test_result(f"Search: '{query}'", False, f"Error: {e}")
 
     def test_doc_type_distribution(self):
         """Test distribution of document types"""
         try:
-            css_docs = self.collection.get(where={"framework": "css"}, include=["metadatas"])
+            css_docs = self.collection.get(
+                where={"framework": "css"}, include=["metadatas"]
+            )
 
             if css_docs["metadatas"]:
                 doc_types = {}
@@ -420,13 +448,17 @@ class MDNCSSDocumentationTests:
                         f"Missing expected doc types. Found: {list(doc_types.keys())[:5]}",
                     )
             else:
-                self.log_test_result("Document Type Distribution", False, "No metadata available")
+                self.log_test_result(
+                    "Document Type Distribution", False, "No metadata available"
+                )
         except Exception as e:
             self.log_test_result("Document Type Distribution", False, f"Error: {e}")
 
     def run_all_tests(self):
         """Run comprehensive test suite"""
-        logger.info("🧪 Starting comprehensive MDN CSS documentation integration tests...")
+        logger.info(
+            "🧪 Starting comprehensive MDN CSS documentation integration tests..."
+        )
 
         # Setup
         if not self.setup_chromadb_connection():

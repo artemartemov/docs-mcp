@@ -1,316 +1,339 @@
+---
 name: CI
 
-on:
+"on":
   push:
-    branches: [ main ]
+    branches: ["main"]
   pull_request:
-    branches: [ main ]
+    branches: ["main"]
 
 jobs:
   server-initialization:
     name: Server Initialization Tests
     runs-on: ubuntu-latest
-    
+
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.11'
-    
-    - name: Cache pip dependencies
-      uses: actions/cache@v3
-      with:
-        path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-server-init-${{ hashFiles('**/requirements*.txt') }}
-        restore-keys: |
-          ${{ runner.os }}-pip-server-init-
-          ${{ runner.os }}-pip-
-    
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install pytest pytest-mock
-        pip install -r requirements.txt
-    
-    - name: Create test directories
-      run: |
-        mkdir -p ./chroma_data
-        mkdir -p logs
-    
-    - name: Run server initialization tests
-      env:
-        PYTHONPATH: src
-        MCP_ENVIRONMENT: development
-        MCP_SECRET_KEY: test-secret-key-32-characters-long
-        MCP_CHROMA_DATA_DIR: ./chroma_data
-      run: |
-        python -m pytest tests/test_server_initialization.py -v --tb=short
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: >-
+            ${{ runner.os }}-pip-server-init-${{
+            hashFiles('**/requirements*.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-server-init-
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest pytest-mock
+          pip install -r requirements.txt
+
+      - name: Create test directories
+        run: |
+          mkdir -p ./chroma_data
+          mkdir -p logs
+
+      - name: Run server initialization tests
+        env:
+          PYTHONPATH: src
+          MCP_ENVIRONMENT: development
+          MCP_SECRET_KEY: test-secret-key-32-characters-long
+          MCP_CHROMA_DATA_DIR: ./chroma_data
+        run: |
+          python -m pytest tests/test_server_initialization.py -v --tb=short
 
   configuration:
     name: Configuration Tests
     runs-on: ubuntu-latest
-    
+
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.11'
-    
-    - name: Cache pip dependencies
-      uses: actions/cache@v3
-      with:
-        path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-config-${{ hashFiles('**/requirements*.txt') }}
-        restore-keys: |
-          ${{ runner.os }}-pip-config-
-          ${{ runner.os }}-pip-
-    
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install pytest pytest-mock
-        pip install -r requirements.txt
-    
-    - name: Create test directories
-      run: |
-        mkdir -p ./chroma_data
-        mkdir -p logs
-    
-    - name: Run configuration tests
-      env:
-        PYTHONPATH: src
-        MCP_ENVIRONMENT: development
-        MCP_SECRET_KEY: test-secret-key-32-characters-long
-        MCP_CHROMA_DATA_DIR: ./chroma_data
-      run: |
-        python -m pytest tests/test_configuration.py -v --tb=short
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: >-
+            ${{ runner.os }}-pip-config-${{
+            hashFiles('**/requirements*.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-config-
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest pytest-mock
+          pip install -r requirements.txt
+
+      - name: Create test directories
+        run: |
+          mkdir -p ./chroma_data
+          mkdir -p logs
+
+      - name: Run configuration tests
+        env:
+          PYTHONPATH: src
+          MCP_ENVIRONMENT: development
+          MCP_SECRET_KEY: test-secret-key-32-characters-long
+          MCP_CHROMA_DATA_DIR: ./chroma_data
+        run: |
+          python -m pytest tests/test_configuration.py -v --tb=short
 
   tool-registration:
     name: Tool Registration Tests
     runs-on: ubuntu-latest
-    
+
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.11'
-    
-    - name: Cache pip dependencies
-      uses: actions/cache@v3
-      with:
-        path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-tools-${{ hashFiles('**/requirements*.txt') }}
-        restore-keys: |
-          ${{ runner.os }}-pip-tools-
-          ${{ runner.os }}-pip-
-    
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install pytest pytest-mock
-        pip install -r requirements.txt
-    
-    - name: Create test directories
-      run: |
-        mkdir -p ./chroma_data
-        mkdir -p logs
-    
-    - name: Run tool registration tests
-      env:
-        PYTHONPATH: src
-        MCP_ENVIRONMENT: development
-        MCP_SECRET_KEY: test-secret-key-32-characters-long
-        MCP_CHROMA_DATA_DIR: ./chroma_data
-      run: |
-        python -m pytest tests/test_tool_registration.py -v --tb=short
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: >-
+            ${{ runner.os }}-pip-tools-${{
+            hashFiles('**/requirements*.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-tools-
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest pytest-mock
+          pip install -r requirements.txt
+
+      - name: Create test directories
+        run: |
+          mkdir -p ./chroma_data
+          mkdir -p logs
+
+      - name: Run tool registration tests
+        env:
+          PYTHONPATH: src
+          MCP_ENVIRONMENT: development
+          MCP_SECRET_KEY: test-secret-key-32-characters-long
+          MCP_CHROMA_DATA_DIR: ./chroma_data
+        run: |
+          python -m pytest tests/test_tool_registration.py -v --tb=short
 
   cli:
     name: CLI Tests
     runs-on: ubuntu-latest
-    
+
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.11'
-    
-    - name: Cache pip dependencies
-      uses: actions/cache@v3
-      with:
-        path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-cli-${{ hashFiles('**/requirements*.txt') }}
-        restore-keys: |
-          ${{ runner.os }}-pip-cli-
-          ${{ runner.os }}-pip-
-    
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install pytest pytest-mock
-        pip install -r requirements.txt
-    
-    - name: Create test directories
-      run: |
-        mkdir -p ./chroma_data
-        mkdir -p logs
-    
-    - name: Run CLI tests
-      env:
-        PYTHONPATH: src
-        MCP_ENVIRONMENT: development
-        MCP_SECRET_KEY: test-secret-key-32-characters-long
-        MCP_CHROMA_DATA_DIR: ./chroma_data
-      run: |
-        python -m pytest tests/test_cli.py -v --tb=short
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: >-
+            ${{ runner.os }}-pip-cli-${{
+            hashFiles('**/requirements*.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-cli-
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest pytest-mock
+          pip install -r requirements.txt
+
+      - name: Create test directories
+        run: |
+          mkdir -p ./chroma_data
+          mkdir -p logs
+
+      - name: Run CLI tests
+        env:
+          PYTHONPATH: src
+          MCP_ENVIRONMENT: development
+          MCP_SECRET_KEY: test-secret-key-32-characters-long
+          MCP_CHROMA_DATA_DIR: ./chroma_data
+        run: |
+          python -m pytest tests/test_cli.py -v --tb=short
 
   coverage:
     name: Test Coverage Report
     runs-on: ubuntu-latest
     needs: [server-initialization, configuration, tool-registration, cli]
-    
+
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.11'
-    
-    - name: Cache pip dependencies
-      uses: actions/cache@v3
-      with:
-        path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-coverage-${{ hashFiles('**/requirements*.txt') }}
-        restore-keys: |
-          ${{ runner.os }}-pip-coverage-
-          ${{ runner.os }}-pip-
-    
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install pytest pytest-mock coverage[toml] pytest-cov
-        pip install -r requirements.txt
-    
-    - name: Create test directories
-      run: |
-        mkdir -p ./chroma_data
-        mkdir -p logs
-    
-    - name: Run all tests with coverage
-      env:
-        PYTHONPATH: src
-        MCP_ENVIRONMENT: development
-        MCP_SECRET_KEY: test-secret-key-32-characters-long
-        MCP_CHROMA_DATA_DIR: ./chroma_data
-      run: |
-        python -m pytest tests/ \
-          --cov=src/docs_mcp \
-          --cov-report=xml \
-          --cov-report=html \
-          --cov-report=term-missing \
-          -v --tb=short
-    
-    - name: Generate coverage badge
-      run: |
-        pip install coverage-badge
-        coverage-badge -o coverage.svg -f
-    
-    - name: Upload coverage reports
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: coverage-reports
-        path: |
-          htmlcov/
-          coverage.xml
-          coverage.svg
-    
-    - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v4
-      if: always()
-      with:
-        file: ./coverage.xml
-        flags: unittests
-        name: docs-mcp-coverage
-        fail_ci_if_error: false
-        token: ${{ secrets.CODECOV_TOKEN }}
-        verbose: true
-        
-    - name: Coverage Summary
-      run: |
-        echo "## 📊 Test Coverage Summary" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "### Overall Coverage" >> $GITHUB_STEP_SUMMARY
-        coverage report --format=markdown >> $GITHUB_STEP_SUMMARY || echo "Coverage report generation failed" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "### Coverage by File" >> $GITHUB_STEP_SUMMARY
-        coverage report --show-missing >> $GITHUB_STEP_SUMMARY || echo "Detailed coverage report generation failed" >> $GITHUB_STEP_SUMMARY
-        
-    - name: Create Coverage Comment
-      if: github.event_name == 'pull_request'
-      run: |
-        # Create a simple coverage comment
-        COVERAGE_PERCENT=$(coverage report | grep TOTAL | awk '{print $4}' | sed 's/%//')
-        if [ -n "$COVERAGE_PERCENT" ]; then
-          echo "Coverage: ${COVERAGE_PERCENT}%"
-          echo "## 📊 Coverage Report" > coverage_comment.md
-          echo "" >> coverage_comment.md
-          echo "**Overall Coverage: ${COVERAGE_PERCENT}%**" >> coverage_comment.md
-          echo "" >> coverage_comment.md
-          echo '```' >> coverage_comment.md
-          coverage report >> coverage_comment.md
-          echo '```' >> coverage_comment.md
-          echo "" >> coverage_comment.md
-          if [ "$COVERAGE_PERCENT" -ge 75 ]; then
-            echo "✅ Coverage meets minimum threshold (75%)" >> coverage_comment.md
-          else
-            echo "⚠️ Coverage below minimum threshold (75%)" >> coverage_comment.md
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: >-
+            ${{ runner.os }}-pip-coverage-${{
+            hashFiles('**/requirements*.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-coverage-
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest pytest-mock coverage[toml] pytest-cov
+          pip install -r requirements.txt
+
+      - name: Create test directories
+        run: |
+          mkdir -p ./chroma_data
+          mkdir -p logs
+
+      - name: Run all tests with coverage
+        env:
+          PYTHONPATH: src
+          MCP_ENVIRONMENT: development
+          MCP_SECRET_KEY: test-secret-key-32-characters-long
+          MCP_CHROMA_DATA_DIR: ./chroma_data
+        run: |
+          python -m pytest tests/ \
+            --cov=src/docs_mcp \
+            --cov-report=xml \
+            --cov-report=html \
+            --cov-report=term-missing \
+            -v --tb=short
+
+      - name: Generate coverage badge
+        run: |
+          pip install coverage-badge
+          coverage-badge -o coverage.svg -f
+
+      - name: Upload coverage reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-reports
+          path: |
+            htmlcov/
+            coverage.xml
+            coverage.svg
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        if: always()
+        with:
+          file: ./coverage.xml
+          flags: unittests
+          name: docs-mcp-coverage
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
+          verbose: true
+
+      - name: Coverage Summary
+        run: |
+          echo "## 📊 Test Coverage Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Overall Coverage" >> $GITHUB_STEP_SUMMARY
+          coverage report --format=markdown >> $GITHUB_STEP_SUMMARY || \
+            echo "Coverage report generation failed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Coverage by File" >> $GITHUB_STEP_SUMMARY
+          coverage report --show-missing >> $GITHUB_STEP_SUMMARY || \
+            echo "Detailed coverage report generation failed" >> \
+            $GITHUB_STEP_SUMMARY
+
+      - name: Create Coverage Comment
+        if: github.event_name == 'pull_request'
+        run: |
+          # Create a simple coverage comment
+          COVERAGE_PERCENT=$(coverage report | grep TOTAL | \
+            awk '{print $4}' | sed 's/%//')
+          if [ -n "$COVERAGE_PERCENT" ]; then
+            echo "Coverage: ${COVERAGE_PERCENT}%"
+            echo "## 📊 Coverage Report" > coverage_comment.md
+            echo "" >> coverage_comment.md
+            echo "**Overall Coverage: ${COVERAGE_PERCENT}%**" >> \
+              coverage_comment.md
+            echo "" >> coverage_comment.md
+            echo '```' >> coverage_comment.md
+            coverage report >> coverage_comment.md
+            echo '```' >> coverage_comment.md
+            echo "" >> coverage_comment.md
+            if [ "$COVERAGE_PERCENT" -ge 75 ]; then
+              echo "✅ Coverage meets minimum threshold (75%)" >> \
+                coverage_comment.md
+            else
+              echo "⚠️ Coverage below minimum threshold (75%)" >> \
+                coverage_comment.md
+            fi
+            echo "" >> coverage_comment.md
+            echo "Coverage artifacts are available in the build " \
+              "artifacts." >> coverage_comment.md
           fi
-          echo "" >> coverage_comment.md
-          echo "Coverage artifacts are available in the build artifacts." >> coverage_comment.md
-        fi
-    
-    - name: Check coverage threshold
-      run: |
-        coverage report --fail-under=75 || echo "Coverage below 75% - consider adding more tests"
-        
+
+      - name: Check coverage threshold
+        run: |
+          coverage report --fail-under=75 || \
+            echo "Coverage below 75% - consider adding more tests"
+
   lint:
     runs-on: ubuntu-latest
-    
+
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.11'
-    
-    - name: Cache pip dependencies
-      uses: actions/cache@v3
-      with:
-        path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-lint-${{ hashFiles('**/requirements-dev.txt') }}
-        restore-keys: |
-          ${{ runner.os }}-pip-lint-
-          ${{ runner.os }}-pip-
-    
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install black flake8
-    
-    - name: Check code formatting
-      run: |
-        black --check src/ tests/ || echo "Code needs formatting"
-        
-    - name: Run flake8
-      run: |
-        flake8 src/ tests/ --max-line-length=100 --extend-ignore=E203,E501 || echo "Linting issues found"
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: >-
+            ${{ runner.os }}-pip-lint-${{
+            hashFiles('**/requirements-dev.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-lint-
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install black flake8
+
+      - name: Check code formatting
+        run: |
+          black --check src/ tests/ || echo "Code needs formatting"
+
+      - name: Run flake8
+        run: |
+          flake8 src/ tests/ --max-line-length=100 \
+            --extend-ignore=E203,E501 || echo "Linting issues found"
