@@ -1,288 +1,147 @@
-# Documentation MCP Server
+# docs-mcp
 
-A secure, production-ready Model Context Protocol (MCP) server providing intelligent documentation search across multiple programming languages and frameworks: **Python**, **FastAPI**, **Swift iOS**, and more.
+A secure Model Context Protocol (MCP) server providing intelligent documentation search across multiple frameworks using ChromaDB vector storage.
 
 ## Features
 
-- 🔍 **Semantic Documentation Search** - Vector-based search across frameworks
-- 🔒 **Security-First** - Input validation, sanitization, and secure configuration
-- 🔧 **Multi-Framework** - Supports multiple programming languages and frameworks
-- 🚀 **Production-Ready** - Comprehensive logging, error handling, and monitoring
-- 🧠 **ChromaDB Integration** - Advanced vector database for semantic search
-- 📚 **Extensible** - Plugin-based architecture for adding new documentation sources
-
-## Tech Stack Support
-
-### FastAPI
-- API design patterns and best practices
-- Dependency injection and middleware
-- Testing strategies and validation
-- Async patterns and database integration
-
-### Python  
-- Security patterns and error handling
-- Testing frameworks and patterns
-- Performance optimization techniques
-- Async/await best practices
-
-### Swift iOS
-- SwiftUI architecture and MVVM patterns
-- Dependency injection and service layer design
-- CoreData integration and memory management
-- Testing patterns and protocol-oriented programming
+- **Semantic Search** across documentation using vector embeddings
+- **Multiple Frameworks** supported: Python, FastAPI, React, SwiftUI, Tailwind CSS, Figma API, Figma Plugins, MDN CSS
+- **ChromaDB Storage** for fast, persistent vector search
+- **MCP Protocol** integration for Claude Code and other AI tools
+- **CLI Interface** for easy management and extraction
 
 ## Quick Start
 
-### Prerequisites
-- Python 3.9+
-- Internet connection for documentation ingestion
-- OpenAI API key (optional, for advanced embeddings)
+1. **Setup Environment**
+   ```bash
+   ./docs-mcp dev --setup
+   ```
 
-### Installation
+2. **Extract Documentation** (choose one or more)
+   ```bash
+   ./docs-mcp extract --framework python
+   ./docs-mcp extract --framework css
+   ./docs-mcp extract --all
+   ```
 
+3. **Start MCP Server**
+   ```bash
+   ./docs-mcp server --start
+   ```
+
+4. **Test Integration**
+   ```bash
+   ./docs-mcp test --framework figma
+   ```
+
+## Available Commands
+
+### Extract Documentation
 ```bash
-# Clone the repository
-git clone <repository-url>
-cd docs-mcp
-
-# Initialize development environment (recommended)
-make init
-
-# Or manual setup:
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-pip install -r requirements.txt
+./docs-mcp extract --framework python     # Python official docs
+./docs-mcp extract --framework fastapi    # FastAPI documentation  
+./docs-mcp extract --framework react      # React.js documentation
+./docs-mcp extract --framework swiftui    # SwiftUI Apple docs
+./docs-mcp extract --framework tailwind   # Tailwind CSS docs
+./docs-mcp extract --framework figma      # Figma REST API docs
+./docs-mcp extract --framework figma_plugin # Figma Plugin API docs
+./docs-mcp extract --framework css        # MDN CSS documentation
+./docs-mcp extract --all                  # Extract all frameworks
 ```
 
-### Configuration
-
-The server works with minimal configuration. For advanced features:
-
+### Analyze Collection
 ```bash
-# Copy example environment file
-cp .env.example .env
+./docs-mcp analyze --stats                # Show documentation statistics
+```
 
-# Edit .env with your settings (optional)
-CHROMA_DATA_DIR=./chroma_data
-OPENAI_API_KEY=sk-your-openai-key  # Optional for advanced embeddings
+### Test Integrations
+```bash
+./docs-mcp test --framework figma         # Test Figma integration
+./docs-mcp test --all                     # Run all tests
+```
+
+### Server Operations
+```bash
+./docs-mcp server --start                 # Start MCP server
+./docs-mcp server --config               # Show configuration
+```
+
+### Development
+```bash
+./docs-mcp dev --setup                    # Setup development environment
+./docs-mcp dev --clean                    # Clean temporary files
+```
+
+## Configuration
+
+Set environment variables in `.env`:
+
+```env
+CHROMA_DATA_DIR=/path/to/chroma/data
+OPENAI_API_KEY=your_openai_key
+ENVIRONMENT=development
 MCP_SERVER_HOST=127.0.0.1
 MCP_SERVER_PORT=8000
-ENVIRONMENT=development
 ```
 
-### First Time Setup
-
-1. **Initialize the development environment:**
-   ```bash
-   make init
-   # This creates virtual environment and installs dependencies
-   ```
-
-2. **Populate the documentation database:**
-   ```bash
-   # Test with limited content first (recommended)
-   ./run_ingestion.sh --source python --test
-   
-   # Full Python documentation ingestion (~468 documents)
-   ./run_ingestion.sh --source python
-   
-   # List all available sources
-   ./run_ingestion.sh --list-sources
-   ```
-
-3. **Start the MCP server:**
-   ```bash
-   ./run_server.sh
-   # or: make run
-   ```
-
-### Easy Scripts
-
-For convenience, use the provided scripts:
-
-- `./run_ingestion.sh` - Handles environment and runs documentation ingestion
-- `./run_server.sh` - Handles environment and runs MCP server  
-- `make init` - One-time setup of development environment
-- `make all-checks` - Run quality checks before commits
-
-### Running the Server
-
-```bash
-# Development mode
-python server.py
-
-# Or with uvicorn for production
-uvicorn server:mcp --host 127.0.0.1 --port 8000
-```
-
-## MCP Tools Available
-
-### Search Tools
-- `search_python_docs(query, category, limit)` - Search Python official documentation with intelligent prioritization
-- `search_fastapi_docs(query, category, limit)` - Search FastAPI documentation  
-- `search_swift_ios_docs(query, category, limit)` - Search Swift iOS patterns
-
-### Documentation Management
-- `ingest_documentation_source(source, test_mode)` - Populate database from documentation sources
-- `list_documentation_sources()` - List all available documentation sources
-- `add_project_documentation(content, framework, category, source)` - Add custom documentation
-
-### Information Tools
-- `get_security_guidelines()` - Get comprehensive security guidelines
-- `get_collection_stats()` - View detailed database statistics
-
-## Integration with Claude Code
+## MCP Integration
 
 Add to your `.mcp.json`:
 
 ```json
 {
   "mcpServers": {
-    "documentation_server": {
+    "docs": {
       "command": "python",
-      "args": ["/path/to/docs-mcp/server.py"],
+      "args": ["src/docs_mcp/server.py"],
       "env": {
-        "PYTHONPATH": "/path/to/docs-mcp"
+        "PYTHONPATH": "src"
       }
     }
   }
 }
 ```
 
-## Documentation Ingestion
+## Available MCP Tools
 
-### Available Sources
+- `search_fastapi_docs()` - Search FastAPI documentation
+- `search_python_docs()` - Search Python documentation  
+- `search_swift_ios_docs()` - Search Swift/iOS documentation
+- `get_security_guidelines()` - Get security best practices
+- `get_collection_stats()` - View database statistics
+- `add_project_documentation()` - Add custom documentation
 
-Currently supported documentation sources:
+## Framework Coverage
 
-- **Python**: Official Python 3 documentation using Sphinx inventory API
-- **FastAPI**: (Coming soon) - FastAPI official documentation  
-- **Swift iOS**: (Coming soon) - Apple's Swift and iOS documentation
+| Framework | Documents | Status |
+|-----------|-----------|--------|
+| Python | 465+ | ✅ Complete |
+| Tailwind CSS | 195+ | ✅ Complete |
+| Figma API | 144+ | ✅ Complete |
+| Figma Plugins | 60+ | ✅ Complete |
+| SwiftUI | 39+ | ✅ Complete |
+| FastAPI | 21+ | ✅ Complete |
+| React | 15+ | ✅ Complete |
+| CSS (MDN) | 2,400+ | 🔄 In Progress |
 
-### Adding New Documentation Sources
+## Requirements
 
-The framework is designed for easy extension:
-
-```bash
-# List available sources
-python ingest_documentation.py --list-sources
-
-# Ingest specific source
-python ingest_documentation.py --source python
-
-# Test mode for safe development
-python ingest_documentation.py --source python --test
-
-# Ingest all available sources
-python ingest_documentation.py --source all
-```
-
-### Creating Custom Adapters
-
-To add support for new documentation sources, create an adapter in `docs_ingestion/adapters/`:
-
-```python
-from docs_ingestion.base import BaseDocumentationSource, DocumentContent, DocumentMetadata
-
-class MyFrameworkSource(BaseDocumentationSource):
-    def get_framework_name(self) -> str:
-        return "myframework"
-    
-    async def discover_content(self) -> List[str]:
-        # Implement content discovery logic
-        pass
-    
-    async def extract_content(self, identifier: str) -> Optional[DocumentContent]:
-        # Implement content extraction logic
-        pass
-```
-
-## Usage Examples
-
-### Basic Search
-
-```python
-# Through MCP tools (recommended)
-search_python_docs("asyncio patterns", "async", 5)
-search_fastapi_docs("dependency injection", "patterns", 3)
-
-# Direct database access
-from docs_ingestion import DocumentationIngester
-ingester = DocumentationIngester()
-stats = ingester.get_collection_stats()
-```
-
-### Adding Custom Documentation
-
-```python
-add_project_documentation(
-    content="Custom documentation content...",
-    framework="python",
-    category="custom_patterns",
-    source="Internal Team Knowledge",
-    doc_type="best_practice"
-)
-```
-
-## Security Features
-
-- **Input Validation** - Pydantic models with strict validation
-- **Query Sanitization** - Removes potentially dangerous characters
-- **Rate Limiting** - Configurable request throttling
-- **Secure Logging** - No sensitive data in logs
-- **Environment Validation** - Comprehensive startup checks
-- **Content Length Limits** - Prevents memory exhaustion attacks
-
-## Development
-
-### Running Tests
-
-```bash
-# Install development dependencies
-pip install -r requirements-dev.txt
-
-# Run tests
-pytest
-
-# Run security checks
-bandit -r server.py config.py
-safety check
-```
-
-### Code Quality
-
-```bash
-# Format code
-black server.py config.py
-
-# Lint code  
-flake8 server.py config.py
-
-# Type checking
-mypy server.py config.py
-```
-
-## Project Structure
-
-```
-docs-mcp/
-├── server.py              # Main MCP server implementation
-├── config.py              # Secure configuration management
-├── requirements.txt       # Production dependencies
-├── requirements-dev.txt   # Development dependencies
-├── .env.example           # Environment configuration template
-├── .gitignore            # Git ignore patterns
-├── README.md             # This file
-└── logs/                 # Application logs (created automatically)
-```
-
-## Contributing
-
-1. Follow security best practices
-2. Add tests for new features
-3. Update documentation as needed
-4. Run security scans before committing
+- Python 3.8+
+- OpenAI API key (for embeddings)
+- 2GB+ disk space (for ChromaDB)
 
 ## License
 
-Private repository for ResaleAnalyzer project.
+MIT License - see LICENSE file for details.
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Run tests: `./docs-mcp test --all`
+5. Submit a pull request
+
+## Support
+
+For issues and questions, please open an issue on GitHub.
