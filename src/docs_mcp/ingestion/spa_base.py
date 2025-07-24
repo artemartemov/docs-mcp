@@ -35,17 +35,17 @@ class SPADocumentationSource(BaseDocumentationSource, ABC):
         super().__init__(name, base_url)
         self.use_browser = use_browser and PLAYWRIGHT_AVAILABLE
         
-        # Browser configuration
+        # Browser configuration with security-first approach
         self.browser: Optional[Browser] = None
         self.context: Optional[BrowserContext] = None
         self.browser_options = {
             'headless': True,
             'args': [
-                '--no-sandbox',
-                '--disable-setuid-sandbox', 
-                '--disable-dev-shm-usage',
-                '--disable-web-security',
-                '--disable-features=VizDisplayCompositor'
+                '--disable-dev-shm-usage',  # Helps in containerized environments
+                '--disable-features=VizDisplayCompositor',  # Reduces resource usage
+                # REMOVED: --no-sandbox (security risk)
+                # REMOVED: --disable-web-security (CORS bypass risk)
+                # REMOVED: --disable-setuid-sandbox (privilege escalation risk)
             ]
         }
         
@@ -73,7 +73,7 @@ class SPADocumentationSource(BaseDocumentationSource, ABC):
                 self.browser = await self.playwright.chromium.launch(**self.browser_options)
                 self.context = await self.browser.new_context(
                     viewport={'width': 1920, 'height': 1080},
-                    user_agent='Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+                    user_agent='ResaleAnalyzer-DocsBot/2.0 (Educational Documentation Research; +https://github.com/anthropics/claude-code)'
                 )
                 logger.info("🌐 Browser context initialized successfully")
             except Exception as e:
