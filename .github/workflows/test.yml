@@ -227,6 +227,9 @@ jobs:
             tests/test_configuration.py \
             tests/test_tool_registration.py \
             tests/test_cli.py \
+            tests/test_server_functionality.py \
+            tests/test_cli_functionality.py \
+            tests/test_main_module.py \
             --cov=src/docs_mcp \
             --cov-report=xml \
             --cov-report=html \
