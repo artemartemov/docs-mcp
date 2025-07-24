@@ -61,7 +61,7 @@ jobs:
           coverage-badge -o coverage.svg
 
       - name: Upload coverage HTML report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: coverage-report
           path: |
@@ -192,7 +192,7 @@ jobs:
           fi
 
       - name: Upload diff coverage report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: coverage-diff
           path: |

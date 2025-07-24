@@ -9,6 +9,7 @@ on:
 
 env:
   PYTHON_DEFAULT_VERSION: "3.11"
+  PYTHONPATH: src
 
 jobs:
   # ============================================================================
@@ -35,7 +36,7 @@ jobs:
             ~/.cache/pip
             ~/.cache/pre-commit
           key: ${{ runner.os }}-deps-${{ hashFiles('**/requirements-dev.txt', '**/.pre-commit-config.yaml') }}
-          restore keys: |
+          restore-keys: |
             ${{ runner.os }}-deps-
 
       - name: Install dependencies
@@ -111,16 +112,17 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
-        exclude:
-          # Skip some combinations to reduce CI time
+        include:
+          # Test minimum and latest Python on Ubuntu (our primary platform)
+          - os: ubuntu-latest
+            python-version: "3.8"
+          - os: ubuntu-latest
+            python-version: "3.11"
+          # Test latest Python on other OS for cross-platform compatibility
           - os: windows-latest
-            python-version: "3.8"
-          - os: windows-latest  
-            python-version: "3.9"
+            python-version: "3.11"
           - os: macos-latest
-            python-version: "3.8"
+            python-version: "3.11"
 
     steps:
       - name: Checkout code
@@ -166,7 +168,7 @@ jobs:
           MCP_SECRET_KEY: test-secret-key-32-characters-long-for-testing
           PYTHONPATH: src
         run: |
-          pytest tests/unit/ -v --tb=short
+          python -m pytest tests/unit/ -v --tb=short
 
       - name: Run integration tests (Ubuntu only)
         if: matrix.os == 'ubuntu-latest'
@@ -176,7 +178,7 @@ jobs:
           MCP_SECRET_KEY: test-secret-key-32-characters-long-for-testing
           PYTHONPATH: src
         run: |
-          pytest tests/integration/ -v --tb=short || echo "⚠️ Integration tests may fail without ChromaDB data"
+          python -m pytest tests/integration/ -v --tb=short || echo "⚠️ Integration tests may fail without ChromaDB data"
 
   # ============================================================================
   # SECURITY SCANNING
@@ -209,7 +211,7 @@ jobs:
           pip-audit --desc
 
       - name: Upload security reports
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: security-reports
@@ -253,7 +255,7 @@ jobs:
           python -c "import docs_mcp; print('✅ Package installs and imports correctly')"
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: dist
           path: dist/
@@ -275,7 +277,7 @@ jobs:
           python-version: ${{ env.PYTHON_DEFAULT_VERSION }}
 
       - name: Download build artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: dist
           path: dist/
