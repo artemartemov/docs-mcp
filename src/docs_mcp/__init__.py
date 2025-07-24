@@ -6,7 +6,7 @@ and other framework documentation using ChromaDB vector storage.
 """
 
 __version__ = "1.0.0"
-__author__ = "ResaleAnalyzer Team"
+__author__ = "Claude"
 __description__ = "MCP server for intelligent documentation search"
 
 from .server import mcp
