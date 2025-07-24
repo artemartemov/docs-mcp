@@ -1,7 +1,18 @@
 """Constants for docs-mcp."""
 
-# Security
-DANGEROUS_CHARS = ["<", ">", '"', "'", "&", ";", "|", "`", "$"]
+# Security - Input sanitization
+DANGEROUS_CHARS = [
+    "<", ">", '"', "'", "&", ";", "|", "`", "$",
+    "{", "}", "[", "]", "(", ")", "\\", 
+    "script", "eval", "exec", "__import__", "open"
+]
+
+# SQL injection prevention patterns
+SQL_INJECTION_PATTERNS = ["'", '"', ";", "--", "/*", "*/", "xp_", "sp_", "union", "select"]
+
+# XSS prevention patterns  
+XSS_PATTERNS = ["<script", "</script", "javascript:", "onload=", "onerror=", "onclick="]
+
 MIN_SECRET_KEY_LENGTH = 32
 
 # Content limits

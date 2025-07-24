@@ -22,7 +22,7 @@ from pydantic import BaseModel, field_validator, Field
 from chromadb.config import Settings as ChromaSettings
 
 from .config import get_settings, validate_environment, create_log_directory
-from .constants import DANGEROUS_CHARS, DEFAULT_SEARCH_LIMIT, MAX_CONTENT_LENGTH
+from .constants import DANGEROUS_CHARS, DEFAULT_SEARCH_LIMIT, MAX_CONTENT_LENGTH, XSS_PATTERNS
 from .exceptions import ValidationError, DatabaseError
 
 # Initialize settings and validate environment
@@ -58,11 +58,19 @@ class SearchRequest(BaseModel):
     @field_validator("query")
     @classmethod
     def sanitize_query(cls, query: str) -> str:
-        """Sanitize search query"""
+        """Sanitize search query against multiple attack vectors"""
         # Remove potentially dangerous characters
+        sanitized = query
         for char in DANGEROUS_CHARS:
-            query = query.replace(char, "")
-        return query.strip()
+            sanitized = sanitized.replace(char, "")
+        
+        # Additional XSS prevention
+        query_lower = sanitized.lower()
+        for pattern in XSS_PATTERNS:
+            if pattern in query_lower:
+                raise ValidationError(f"Potentially malicious content detected: {pattern}")
+        
+        return sanitized.strip()
 
 
 class DocumentRequest(BaseModel):
