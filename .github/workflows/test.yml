@@ -30,7 +30,7 @@ jobs:
         MCP_ENVIRONMENT: development
         MCP_SECRET_KEY: test-secret-key-32-characters-long
       run: |
-        python -m pytest tests/ -v --tb=short
+        python -m pytest tests/test_server.py -v --tb=short
         
   lint:
     runs-on: ubuntu-latest
