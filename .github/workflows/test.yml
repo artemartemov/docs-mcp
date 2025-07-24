@@ -7,7 +7,8 @@ on:
     branches: [ main ]
 
 jobs:
-  test:
+  server-initialization:
+    name: Server Initialization Tests
     runs-on: ubuntu-latest
     
     steps:
@@ -17,6 +18,180 @@ jobs:
       uses: actions/setup-python@v4
       with:
         python-version: '3.11'
+    
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-server-init-${{ hashFiles('**/requirements*.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-server-init-
+          ${{ runner.os }}-pip-
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest pytest-mock
+        pip install -r requirements.txt
+    
+    - name: Create test directories
+      run: |
+        mkdir -p ./chroma_data
+        mkdir -p logs
+    
+    - name: Run server initialization tests
+      env:
+        PYTHONPATH: src
+        MCP_ENVIRONMENT: development
+        MCP_SECRET_KEY: test-secret-key-32-characters-long
+        MCP_CHROMA_DATA_DIR: ./chroma_data
+      run: |
+        python -m pytest tests/test_server_initialization.py -v --tb=short
+
+  configuration:
+    name: Configuration Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-config-${{ hashFiles('**/requirements*.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-config-
+          ${{ runner.os }}-pip-
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest pytest-mock
+        pip install -r requirements.txt
+    
+    - name: Create test directories
+      run: |
+        mkdir -p ./chroma_data
+        mkdir -p logs
+    
+    - name: Run configuration tests
+      env:
+        PYTHONPATH: src
+        MCP_ENVIRONMENT: development
+        MCP_SECRET_KEY: test-secret-key-32-characters-long
+        MCP_CHROMA_DATA_DIR: ./chroma_data
+      run: |
+        python -m pytest tests/test_configuration.py -v --tb=short
+
+  tool-registration:
+    name: Tool Registration Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-tools-${{ hashFiles('**/requirements*.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-tools-
+          ${{ runner.os }}-pip-
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest pytest-mock
+        pip install -r requirements.txt
+    
+    - name: Create test directories
+      run: |
+        mkdir -p ./chroma_data
+        mkdir -p logs
+    
+    - name: Run tool registration tests
+      env:
+        PYTHONPATH: src
+        MCP_ENVIRONMENT: development
+        MCP_SECRET_KEY: test-secret-key-32-characters-long
+        MCP_CHROMA_DATA_DIR: ./chroma_data
+      run: |
+        python -m pytest tests/test_tool_registration.py -v --tb=short
+
+  cli:
+    name: CLI Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-cli-${{ hashFiles('**/requirements*.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-cli-
+          ${{ runner.os }}-pip-
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest pytest-mock
+        pip install -r requirements.txt
+    
+    - name: Create test directories
+      run: |
+        mkdir -p ./chroma_data
+        mkdir -p logs
+    
+    - name: Run CLI tests
+      env:
+        PYTHONPATH: src
+        MCP_ENVIRONMENT: development
+        MCP_SECRET_KEY: test-secret-key-32-characters-long
+        MCP_CHROMA_DATA_DIR: ./chroma_data
+      run: |
+        python -m pytest tests/test_cli.py -v --tb=short
+
+  coverage:
+    name: Test Coverage Report
+    runs-on: ubuntu-latest
+    needs: [server-initialization, configuration, tool-registration, cli]
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-coverage-${{ hashFiles('**/requirements*.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-coverage-
+          ${{ runner.os }}-pip-
     
     - name: Install dependencies
       run: |
@@ -29,14 +204,14 @@ jobs:
         mkdir -p ./chroma_data
         mkdir -p logs
     
-    - name: Run tests with coverage
+    - name: Run all tests with coverage
       env:
         PYTHONPATH: src
         MCP_ENVIRONMENT: development
         MCP_SECRET_KEY: test-secret-key-32-characters-long
         MCP_CHROMA_DATA_DIR: ./chroma_data
       run: |
-        python -m pytest tests/test_server_initialization.py tests/test_configuration.py tests/test_tool_registration.py tests/test_cli.py \
+        python -m pytest tests/ \
           --cov=src/docs_mcp \
           --cov-report=xml \
           --cov-report=html \
@@ -81,6 +256,15 @@ jobs:
       uses: actions/setup-python@v4
       with:
         python-version: '3.11'
+    
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-lint-${{ hashFiles('**/requirements-dev.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-lint-
+          ${{ runner.os }}-pip-
     
     - name: Install dependencies
       run: |
